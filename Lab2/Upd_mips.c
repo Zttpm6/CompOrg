@@ -9,10 +9,12 @@
 uint32_t prevInstruction;
 
 
-uint32_t extend_sign(uint32_t im) {
+uint32_t extend_sign(uint32_t im)
+{
     uint32_t data = (im & 0x0000FFFF);
     uint32_t mask = 0x00008000;
-    if (mask & data) {
+    if (mask & data) 
+	{
         data = data | 0xFFFF0000;
     }
 
@@ -86,7 +88,8 @@ void cycle() {
 /***************************************************************/
 /* Simulate MIPS for n cycles                                                                                       */
 /***************************************************************/
-void run(int num_cycles) {
+void run(int num_cycles) 
+{
 
     if (RUN_FLAG == FALSE) {
         printf("Simulation Stopped\n\n");
@@ -336,14 +339,8 @@ void handle_instruction() {
             uint32_t sa = (0x000007C0 & ins) >> 6;
             //func mask
             uint32_t func = (0x0000003F & ins);
-
-            printf("\nR type instruction\n"
-                   "rs : %x\n"
-                   "rt : %x\n"
-                   "rd : %x\n"
-                   "sa : %x\n"
-                   "func : %x\n", rs, rt, rd, sa, func);
-            switch (func) {
+            switch (func) 
+			{
                 //Add
                 case 0x00000020: {
                     NEXT_STATE.REGS[rd] = CURRENT_STATE.REGS[rs] + CURRENT_STATE.REGS[rt];
@@ -533,13 +530,12 @@ void handle_instruction() {
             //im mask
             uint32_t im = (0x00000FFFF & ins);
 
-            printf("\nI-type instruction\n"
-                   "rs : %x\n"
-                   "rt : %x\n"
-                   "im : %x\n", rs, rt, im);
 
-            switch (opcode) {
-                case 0x20000000: {
+
+            switch (opcode) 
+			{
+                case 0x20000000: 
+				{
                     //ADDI
                     puts("ADDI");
                     NEXT_STATE.REGS[rt] = extend_sign(im) + CURRENT_STATE.REGS[rs];
@@ -698,6 +694,141 @@ void handle_instruction() {
     NEXT_STATE.PC = CURRENT_STATE.PC + jump;
 }
 
+/************************************************************/
+/* Converting Registers to strings                                                                                         */
+/************************************************************/
+char* convert_Reg(uint32_t reg)
+{
+    if(reg== 0)
+	{
+        return "$zero";
+    }
+    else if(reg == 1)
+	{
+        return "$at";
+    }
+    else if(reg == 2)
+	{
+        return "$v0";
+    }
+    else if(reg == 3)
+	{
+        return "$v1";
+    }
+    else if(reg == 4)
+	{
+        return "$a0";
+    }
+    else if(reg == 5)
+	{
+        return "$a1";
+    }
+    else if(reg == 6)
+	{
+        return "$a2";
+    }
+    else if(reg == 7)
+	{
+        return "$a3";
+    }
+    else if(reg == 8)
+	{
+        return "$t0";
+    }
+    else if(reg == 9)
+	{
+        return "$t1";
+    }
+    else if(reg == 10)
+	{
+        return "$t2";
+    }
+    else if(reg == 11)
+	{
+        return "$t3";
+    }
+    else if(reg == 12)
+	{
+        return "$t4";
+    }
+    else if(reg == 13)
+	{
+        return "$t5";
+    }
+    else if(reg == 14)
+	{
+        return "$t6";
+    }
+    else if(reg == 15)
+	{
+        return "$t7";
+    }
+    else if(reg == 16)
+	{
+        return "$s0";
+    }
+    else if(reg == 17)
+	{
+        return "$s1";
+    }
+    else if(reg == 18)
+	{
+        return "$s2";
+    }
+    else if(reg == 19)
+	{
+        return "$s3";
+    }
+    else if(reg == 20)
+	{
+        return "$s4";
+    }
+    else if(reg == 21)
+	{
+        return "$s5";
+    }
+    else if(reg == 22)
+	{
+        return "$s6";
+    }
+    else if(reg == 23)
+	{
+        return "$s7";
+    }
+    else if(reg == 24)
+	{
+        return "$t8";
+    }
+    else if(reg == 25){
+        return "$t9";
+    }
+    else if(reg == 26){
+        return "$k0";
+    }
+    else if(reg == 27){
+        return "$k1";
+    }
+    else if(reg == 28)
+	{
+        return "$gp";
+    }
+    else if(reg == 29)
+	{
+        return "$sp";
+    }
+    else if(reg == 30)
+	{
+        return "$fp";
+    }
+    else if(reg == 31)
+	{
+        return "$ra";
+    }
+    else
+	{
+        return "error";
+    }
+}
 
 /************************************************************/
 /* Initialize Memory                                                                                                    */
@@ -726,269 +857,264 @@ void print_program() {
 /************************************************************/
 /* Print the instruction at given memory address (in MIPS assembly format)    */
 /************************************************************/
-void print_instruction(uint32_t addr) {
+void print_instruction(uint32_t addr) 
+{
     uint32_t ins = mem_read_32(addr);
     uint32_t opcode = (0xFC000000 & ins);
-    switch (opcode) {
+    switch (opcode) 
+	{
         //R-Type statement
-        case 0x00000000: {
-            //rs MASK: 0000 0011 1110 0000 4x0000 = 03E00000
+        case 0x00000000: 
+		{
             uint32_t rs = (0x03E00000 & ins) >> 21;
-            //rt MASK: 0000 0000 0001 1111 4x0000 = 001F0000;
             uint32_t rt = (0x001F0000 & ins) >> 16;
-            //rd MASK: 4x0000 1111 1000 0000 0000 = 0000F800;
             uint32_t rd = (0x0000F800 & ins) >> 11;
-            //sa MASK: 4X0000 0000 0111 1100 0000 = 000007C0;
             uint32_t sa = (0x000007C0 & ins) >> 6;
-            //func MASK: 6x0000 0001 1111 = 0000001F
             uint32_t func = (0x0000003F & ins);
 
-            switch (func) {
+            switch (func) 
+			{
                 case 0x00000020:
                     //ADD
-                    
+                    printf( "ADD %s, %s, 0x%x\n\n", convert_Reg(rd), convert_Reg(rs), rt);
                     break;
 
                 case 0x00000021:
                     //ADDU
-                   
+                    printf( "ADDU %s, %s, 0x%x\n\n", convert_Reg(rd), convert_Reg(rs), rt);
                     break;
 
                 case 0x00000022:
                     //SUB
-                    
+                    printf( "SUB %s, %s, 0x%x\n\n", convert_Reg(rd), convert_Reg(rs), rt);
                     break;
 
                 case 0x00000023:
                     //SUBU
-                   
+                    printf( "SUBU %s, %s, 0x%x\n\n", convert_Reg(rd), convert_Reg(rs), rt);
                     break;
 
-                case 0x00000018: {
+                case 0x00000018: 
                     //MULT
-                  
+                    printf( "MULT %s, 0x%x\n\n", convert_Reg(rs), rt);
                     break;
-                }
-
-                case 0x00000019: {
+                
+                case 0x00000019: 
                     //MULTU
-            
+            		printf( "MULTU %s, 0x%x\n\n", convert_Reg(rs), rt);
                     break;
-                }
-
+                
                 case 0x0000001A:
                     //DIV
-                  
+                  	printf( "DIV %s, 0x%x\n\n", convert_Reg(rs), rt);
                     break;
 
                 case 0x0000001B:
                     //DIVU
-                    
+                    printf( "DIVU %s, 0x%x\n\n", convert_Reg(rs), rt);
                     break;
 
                 case 0X00000024:
                     //AND
-
+					printf( "AND %s, %s, 0x%x\n\n", convert_Reg(rd), convert_Reg(rs), rt);
                     break;
 
                 case 0X00000025:
                     //OR
-                 
+                 	printf( "OR %s, %s, 0x%x\n\n", convert_Reg(rd), convert_Reg(rs), rt);
                     break;
 
                 case 0X00000026:
                     //XOR
-                  
+                    printf( "XOR %s, %s, 0x%x\n\n", convert_Reg(rd), convert_Reg(rs), rt);
                     break;
 
                 case 0x00000027:
                     //NOR
-                  
+                    printf( "NOR %s, %s, 0x%x\n\n", convert_Reg(rd), convert_Reg(rs), rt);
                     break;
 
                 case 0x0000002A:
                     //SLT
-                   
+                    printf( "SLTs %s, %s, 0x%x\n\n", convert_Reg(rd), convert_Reg(rs), rt);
                     break;
 
-                case 0x00000000: {
+                case 0x00000000: 
                     //SLL
-                   
+                    printf( "SLL %s, %s, 0x%x\n\n", convert_Reg(rd), convert_Reg(rs), sa);
                     break;
-                }
-
-                case 0x00000002: {
+                
+                case 0x00000002: 
                     //SRL
-                    
+                    printf( "SRL %s, %s, 0x%x\n\n", convert_Reg(rd), convert_Reg(rs), sa);
                     break;
-                }
-
-                case 0x00000003: {
+                
+                case 0x00000003: 
                     //SRA
-                   
+                    printf( "SRA %s, %s, 0x%x\n\n", convert_Reg(rd), convert_Reg(rs), sa);
                     break;
-                }
+                
                 case 0x0000000C:
                     //SYSCALL - System Call, exit the program.
-                    
+                    printf( "SYSCALL\n\n");
                     break;
 
                 case 0x00000008:
                     //JR
-                   
+                    printf( "JR %s\n\n", convert_Reg(rs));
                     break;
+					
                 case 0x00000009:
                     //JALR
-                    printf("\n\nJALR Instruction:"
-                   
+                    printf( "JALR %s, %s\n\n", convert_Reg(rd), convert_Reg(rs));
                     break;
 
                 case 0x00000013:
                     //MTLO
-                 
+                    printf( "MTLO %s\n\n", convert_Reg(rs));
                     break;
 
                 case 0x0000011:
                     //MTHI
-                
+                    printf( "MTHI %s\n\n", convert_Reg(rs));
                     break;
 
                 case 0x0000012:
                     //MFLO
-                   
+                    printf( "MFLO %s\n\n", convert_Reg(rd));
                     break;
 
                 case 0x0000010:
                     //MFHI
-                   
+                     printf( "MFHI %s\n\n", convert_Reg(rd));
                     break;
             }
+			
             prevInstruction = func;
             break;
 
         }
-        case 0x08000000: {
-            //JL
-            
-            break;
-        }
-
-        case 0x0C000000: {
+		
+        case 0x0C000000: 
             //JAL-Jump and Link Instruction
-           
+            uint32_t tar = ( 0x03FFFFFF & ins  );
+            printf( "JAL %s\n\n", convert_Reg(tar));
             break;
-        }
-
-
-            //I-type statement
-        default : {
+        
+		
+        //I-type statement
+        default: 
+		{
             //rs mask
             uint32_t rs = (0x03E00000 & ins) >> 21;
             //rt mask
             uint32_t rt = (0x001F0000 & ins) >> 16;
             //im mask
             uint32_t im = (0x00000FFFF & ins);
-            switch (opcode) {
-                case 0x20000000: {
+            switch (opcode) 
+			{
+                case 0x20000000: 
                     //ADDI
-                    
+                    printf( "ADDI %s, %s, 0x%x\n\n", convert_Reg(rt), convert_Reg(rs), im);
                     break;
-                }
-                case 0x24000000: {
+                
+                case 0x24000000: 
                     //ADDIU
-                    
+                    printf( "ADDIU %s, %s, 0x%x\n\n", convert_Reg(rt), convert_Reg(rs), im);
                     break;
-                }
-                case 0x30000000: {
+                
+                case 0x30000000: 
                     //ANDI
-                    
+                    printf( "ANDI %s, %s, 0x%x\n\n", convert_Reg(rt), convert_Reg(rs), im);
                     break;
-                }
-                case 0x34000000: {
+                
+                case 0x34000000: 
                     //ORI
-                    
+                    printf( "ORI %s, %s, 0x%x\n\n", convert_Reg(rs), convert_Reg(rt), im);
                     break;
-                }
-                case 0x38000000: {
+                
+                case 0x38000000: 
                     //XORI
-                    
+                    printf("XORI %s, 0x%x(%s)\n\n", convert_Reg(rt), im, convert_Reg(rs));
                     break;
-                }
-                case 0x28000000: {
+                
+                case 0x28000000: 
                     //SLTI
-                  
+                    printf("SLTI %s, 0x%x(%s)\n\n", convert_Reg(rt), im, convert_Reg(rs));
                     break;
-                }
-                case 0x8C000000: {
+                
+                case 0x8C000000: 
                     //LW
-                   
+                    printf( "LW %s, 0x%x(%s)\n\n", convert_Reg(rt), im, convert_Reg(rs));
                     break;
-                }
-                case 0x80000000: {
+                
+                case 0x80000000: 
                     //LB
-                    printf("\nLB Instruction:\nOpcode: %x \nrs: %x\nrt: %x\nImmediate: %x\n", opcode, rs, rt, im);
+                    printf( "LB %s, 0x%x(%s)\n\n", convert_Reg(rt), im, convert_Reg(rs));
                     break;
-                }
-                case 0x84000000: {
+                
+                case 0x84000000: 
                     //LH
-                    
+                    printf( "LH %s, 0x%x(%s)\n\n", convert_Reg(rt), im, convert_Reg(rs));
                     break;
-                }
-                case 0x3C000000: {
+                
+                case 0x3C000000: 
                     //LUI
-                    
+                    printf( "LUI %s, 0x%x\n\n", convert_Reg(rt), im);
                     break;
-                }
-                case 0xAC000000: {
+                
+                case 0xAC000000: 
                     //SW
-                    
+                    printf( "SW %s, 0x%x(%s)\n\n", convert_Reg(rt), im, convert_Reg(rs));
                     break;
-                }
-                case 0xA000000: {
+                
+                case 0xA000000: 
                     //SB
-                   
+                    printf( "SB %s, 0x%x(%s)\n\n", convert_Reg(rt), im, convert_Reg(rs));
                     break;
-                }
-                case 0xA4000000: {
+                
+                case 0xA4000000: 
                     //SH
-                    
+                     printf( "SH %s, 0x%x(%s)\n\n", convert_Reg(rt), im, convert_Reg(rs));
                     break;
-                }
-                case 0x10000000: {
+                
+                case 0x10000000: 
                     //BEQ
-                   
+                    printf( "BEQ %s, %s, 0x%x\n\n", convert_Reg(rs), convert_Reg(rt), im);
                     break;
-                }
-                case 0x14000000: {
+                
+                case 0x14000000: 
                     //BNE
-                    
+                    printf( "BNE %s, %s, 0x%x\n\n", convert_Reg(rs), convert_Reg(rt), im);
                     break;
-                }
-                case 0x18000000: {
+                
+                case 0x18000000: 
                     //BLEZ
-                    
+                    printf( "BLEZ %s, 0x%x\n\n", convert_Reg(rs), im);
                     break;
-                }
-                case 0x1C000000: {
+                
+                case 0x1C000000: 
                     //BGTZ
-                    
+                    printf( "BGTZ %s, 0x%x\n\n", convert_Reg(rs), im);
                     break;
-                }
-                case 0x04000000: {
+                
+                case 0x04000000: 
+				{
                     //REGIMM
-                    switch (rt) {
-                        case 0x00000000: {
+                    switch (rt) 
+					{
+                        case 0x00000000: 
                             //BLTZ
-                            
+                            printf( "BLTZ %s, 0x%x\n\n", convert_Reg(rs), im);
                             break;
-                        }
-                        case 0x00000001: {
+							
+                        case 0x00000001: 
                             //BGEZ
-                            
-                            break;
-                        }
+                            printf( "BGEZ %s, 0x%x\n\n", convert_Reg(rs), im);
                             break;
                     }
+					
+					break;
                 }
             }
         }

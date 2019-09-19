@@ -8,7 +8,6 @@
 /************************************************************/
 uint32_t getRegister( char * ins )
 {
-
   if( strcmp( "$zero", ins ) == 0 )
   {
      return 0x00;
@@ -153,3 +152,4 @@ void getArg( char * ron, FILE * fp )
     }        
     return;                	
 }     
+
