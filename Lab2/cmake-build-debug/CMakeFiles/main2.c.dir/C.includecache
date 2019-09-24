@@ -1,0 +1,18 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+C:/Users/Zach Taylor/Desktop/CompOrg/Lab2/Assembler.c
+stdio.h
+-
+stdlib.h
+-
+string.h
+-
+stdint.h
+-
+

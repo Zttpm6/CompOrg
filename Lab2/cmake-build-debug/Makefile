@@ -122,6 +122,46 @@ main.c/fast:
 	$(MAKE) -f CMakeFiles\main.c.dir\build.make CMakeFiles/main.c.dir/build
 .PHONY : main.c/fast
 
+#=============================================================================
+# Target rules for targets named main2.c
+
+# Build rule for target.
+main2.c: cmake_check_build_system
+	$(MAKE) -f CMakeFiles\Makefile2 main2.c
+.PHONY : main2.c
+
+# fast build rule for target.
+main2.c/fast:
+	$(MAKE) -f CMakeFiles\main2.c.dir\build.make CMakeFiles/main2.c.dir/build
+.PHONY : main2.c/fast
+
+Assembler.obj: Assembler.c.obj
+
+.PHONY : Assembler.obj
+
+# target to build an object file
+Assembler.c.obj:
+	$(MAKE) -f CMakeFiles\main2.c.dir\build.make CMakeFiles/main2.c.dir/Assembler.c.obj
+.PHONY : Assembler.c.obj
+
+Assembler.i: Assembler.c.i
+
+.PHONY : Assembler.i
+
+# target to preprocess a source file
+Assembler.c.i:
+	$(MAKE) -f CMakeFiles\main2.c.dir\build.make CMakeFiles/main2.c.dir/Assembler.c.i
+.PHONY : Assembler.c.i
+
+Assembler.s: Assembler.c.s
+
+.PHONY : Assembler.s
+
+# target to generate assembly for a file
+Assembler.c.s:
+	$(MAKE) -f CMakeFiles\main2.c.dir\build.make CMakeFiles/main2.c.dir/Assembler.c.s
+.PHONY : Assembler.c.s
+
 Assembler2.obj: Assembler2.c.obj
 
 .PHONY : Assembler2.obj
@@ -156,8 +196,12 @@ help:
 	@echo ... clean
 	@echo ... depend
 	@echo ... main.c
+	@echo ... main2.c
 	@echo ... edit_cache
 	@echo ... rebuild_cache
+	@echo ... Assembler.obj
+	@echo ... Assembler.i
+	@echo ... Assembler.s
 	@echo ... Assembler2.obj
 	@echo ... Assembler2.i
 	@echo ... Assembler2.s
