@@ -387,6 +387,39 @@ void MEM()
 void EX()
 {
 	/*Zach Taylor*/
+        
+        //Load Instruction from Buffer
+        EX_MEM.IR = ID_EX.IR
+        uint32_t opcode = ( 0xFC000000 & EX_MEM.IR  );
+        uint32_t imm = ID_EX.imm;
+        uint32_t func = (EX_MEM.IR & 0x0000003F);
+        
+        switch( opcode )
+        {
+            //R-Type
+            case 0x00000000: 
+                EX_MEM.type = 0;
+                
+                    switch (func)
+                    {
+                        case 0x20:
+                            puts ("ADD");
+                            EX_MEM.ALUOutput = ID_EX.A + ID_EX.B;
+                            break;
+                            
+                        case 0x21: 
+                            puts ("ADDU");
+                            EX_MEM.ALUOutput = ID_EX.A + ID_EX.B;
+                        
+                        case 0x22: 
+                            puts ("SUB");
+                            EX_MEM.ALUOutput = ID_EX.A - ID_EX.B;
+                        
+                    }
+        
+               
+        }
+        
 }
 
 /************************************************************/
@@ -426,7 +459,7 @@ void IF()
 /************************************************************/
 /* Initialize Memory                                                                                                    */ 
 /************************************************************/
-void initialize() { 
+void initialize(){ 
 	init_memory();
 	CURRENT_STATE.PC = MEM_TEXT_BEGIN;
 	NEXT_STATE = CURRENT_STATE;
