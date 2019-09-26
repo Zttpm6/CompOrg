@@ -343,6 +343,19 @@ void handle_pipeline()
 void WB()
 {
 	/*Zach Taylor*/
+	uint32_t rt = (0x001F0000 & MEM_WB.IR) >> 16;
+	uint32_t rd = (0x0000F800 & MEM_WB.IR) >> 11;
+	switch(EX_MEM.type) {
+        case (0):
+            NEXT_STATE.REGS[rd] = EX_MEM.ALUOutput;
+            break;
+        case 1:
+            NEXT_STATE.REGS[rt] = EX_MEM.ALUOutput;
+            break;
+        case 2:
+            NEXT_STATE.REGS[rt] = EX_MEM.LMD;
+    }
+
 }
 
 /************************************************************/
@@ -353,7 +366,7 @@ void MEM()
 	/*Zach Taylor*/
         
         MEM_WB.IR = EX_MEM.IR;
-	MEM_WB.type = EX_MEM.type;
+	    MEM_WB.type = EX_MEM.type;
         if(EX_MEM.type <= 1)
         {
                 MEM_WB.ALUOutput = EX_MEM.ALUOutput;
