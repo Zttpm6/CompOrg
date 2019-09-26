@@ -1,6 +1,6 @@
-Upd-mips: Upd-mips.c
-	gcc -Wall -g -O2 Upd-mips.c -o mips
+mu-mips: mu-mips.c
+	gcc -Wall -g -O2 $^ -o $@
 
 .PHONY: clean
 clean:
-	rm -rf *.o *~ Upd-mips
+	rm -rf *.o *~ mu-mips
