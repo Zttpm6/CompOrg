@@ -307,6 +307,22 @@ void load_program() {
 }
 
 /************************************************************/
+/*Help Extend the register from 16 bits to 32 bits                                                                                         */ 
+/************************************************************/
+
+uint32_t extend_sign( uint32_t im )
+{
+	uint32_t data = ( im & 0x0000FFFF );
+	uint32_t mask = 0x00008000;
+	if ( mask & data ) 
+	{
+		data = data | 0xFFFF0000;
+	}
+
+	return data;
+}
+
+/************************************************************/
 /* maintain the pipeline                                                                                           */ 
 /************************************************************/
 void handle_pipeline()
@@ -335,6 +351,21 @@ void WB()
 void MEM()
 {
 	/*Zach Taylor*/
+        
+        MEM_WB.IR = EX_MEM.IR;
+	MEM_WB.type = EX_MEM.type;
+        if(EX_MEM.type <= 1)
+        {
+                MEM_WB.ALUOutput = EX_MEM.ALUOutput;
+        }
+        if(EX_MEM.type <= 2)
+        {
+                MEM_WB.LMD = mem_read_32(EX_MEM.ALUOutput);
+        }
+        if(EX_MEM.type <= 3)
+        {
+               mem_write_32(EX_MEM.ALUOutput, EX_MEM.B);
+        }
 }
 
 /************************************************************/
@@ -351,6 +382,19 @@ void EX()
 void ID()
 {
 	/*OLA*/
+        ID_EX.IR = IF_ID.IR;
+        
+        uint32_t rs = ( 0x03E00000 & IF_ID.IR  ) >> 21;
+        uint32_t rt = ( 0x001F0000 & IF_ID.IR  ) >> 16;
+        uint32_t imm = ( 0x0000FFFF & IF_ID.IR  );
+        
+        //Load data in ID->EX Buffer
+        
+        ID_EX.A = CURRENT_STATE.REGS[rs];
+        ID_EX.B = CURRENT_STATE.REGS[rt];
+        ID_EX.imm = extend_sign( imm );
+        ID_EX.LO = CURRENT_STATE.LO;
+        ID_EX.HI = CURRENT_STATE.HI;
 }
 
 /************************************************************/
