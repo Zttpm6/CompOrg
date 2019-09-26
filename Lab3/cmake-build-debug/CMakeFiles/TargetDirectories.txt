@@ -1,0 +1,3 @@
+/nfshome/zttpm6/Desktop/CompOrg/Lab3/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/nfshome/zttpm6/Desktop/CompOrg/Lab3/cmake-build-debug/CMakeFiles/main.c.dir
+/nfshome/zttpm6/Desktop/CompOrg/Lab3/cmake-build-debug/CMakeFiles/edit_cache.dir
