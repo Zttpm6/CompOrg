@@ -359,6 +359,10 @@ void ID()
 void IF()
 {
 	/*Ola*/
+	uint32_t instruction = mem_read_32(CURRENT_STATE.PC);
+	IF_ID.IR = instruction;
+	NEXT_STATE.PC = CURRENT_STATE.PC + 0x4;
+	IF_ID.PC = NEXT_STATE.PC;
 }
 
 
