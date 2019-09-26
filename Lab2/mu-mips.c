@@ -5,20 +5,6 @@
 #include <assert.h>
 
 #include "mu-mips.h"
-uint32_t prevInstruction;
-
-
-uint32_t extend_sign( uint32_t im )
-{
-	uint32_t data = ( im & 0x0000FFFF );
-	uint32_t mask = 0x00008000;
-	if ( mask & data ) 
-	{
-		data = data | 0xFFFF0000;
-	}
-
-	return data;
-}
 
 /***************************************************************/
 /* Print out a list of commands available                                                                  */
@@ -321,429 +307,297 @@ void handle_instruction()
 {
 	/*IMPLEMENT THIS*/
 	/* execute one instruction at a time. Use/update CURRENT_STATE and and NEXT_STATE, as necessary.*/
-
-	uint32_t ins = mem_read_32(CURRENT_STATE.PC);
-	printf("\nInstruction: %08x ", ins);
-	uint32_t opcode = (0xFC000000 & ins);
-	uint32_t jump = 0x4;
 	
-	printf("\nOpcode: %0x8\n", opcode);
-	switch (opcode)
-	{
-	    //R statement
-	    case 0x00000000:
-		{
-	        //rs mask
-	        uint32_t rs = (0x03E00000 & ins) >> 21;
-	        //rt mask
-	        uint32_t rt = (0x001F0000 & ins) >> 16;
-	        //rd mask
-	        uint32_t rd = (0x0000F800 & ins) >> 11;
-	        //sa mask
-	        uint32_t sa = (0x000007C0 & ins) >> 6;
-	        //func mask
-	        uint32_t func = (0x0000003F & ins);
-
-	        printf("\nR type instruction\n"
-               "rs : %x\n"
-               "rt : %x\n"
-               "rd : %x\n"
-               "sa : %x\n"
-               "func : %x\n", rs,rt,rd,sa,func);
-	        switch(func)
-			{
-	            //Add
-                case 0x00000020:{
-                    NEXT_STATE.REGS[rd] = CURRENT_STATE.REGS[rs] + CURRENT_STATE.REGS[rt];
-                    break;
-
-                }
-                //ADDU add unsigned
-	            case 0x00000021:{
-                    NEXT_STATE.REGS[rd] = CURRENT_STATE.REGS[rs] + CURRENT_STATE.REGS[rt];
-                    break;
-	            }
-	            //Sub
-	            case 0x00000022:{
-	                NEXT_STATE.REGS[rd] = CURRENT_STATE.REGS[rs] - CURRENT_STATE.REGS[rt];
-	                break;
-	            }
-	            //Subu
-	            case 0x00000023:{
-                    NEXT_STATE.REGS[rd] = CURRENT_STATE.REGS[rs] - CURRENT_STATE.REGS[rt];
-                    break;
-	            }
-	            //MUlT
-	            case 0x00000018:{
-
-                    if(prevInstruction == 0x0000012 || prevInstruction == 0x0000011)
-                    {
-                        puts("Result is undefined");
-                        break;
-                    }
-                    uint64_t tempResult = CURRENT_STATE.REGS[rs] * CURRENT_STATE.REGS[rt];
-
-                    NEXT_STATE.LO = tempResult & 0xFFFFFFFF; //get low 32-bits
-                    NEXT_STATE.HI = tempResult >> 32; //get high 32-bits
-                    break;
-	            }
-	            //Multu
-	            case 0x00000019:{
-
-
-                    //if either of the 2 preceding instructions were MFLO or MFHI, result is undefined
-                    if(prevInstruction == 0x0000012 || prevInstruction == 0x0000011)
-                    {
-                        puts("Result is undefined");
-                        break;
-                    }
-
-                    uint64_t tempResult = CURRENT_STATE.REGS[rs] * CURRENT_STATE.REGS[rt];
-
-                    NEXT_STATE.LO = tempResult & 0xFFFFFFFF; //get low 32-bits
-                    NEXT_STATE.HI = tempResult >> 32; //get high 32-bits
-	                break;
-	            }
-                    //DIV
-                case 0x0000001A: {
-
-                    //if either of the 2 preceding instructions were MFLO or MFHI, result is undefined
-                    if (prevInstruction == 0x0000012 || prevInstruction == 0x0000011 || CURRENT_STATE.REGS[rt] == 0) {
-                        puts("Result is undefined");
-                        break;
-                    }
-
-                    NEXT_STATE.LO = CURRENT_STATE.REGS[rs] / CURRENT_STATE.REGS[rt]; //get quotient
-                    NEXT_STATE.HI = CURRENT_STATE.REGS[rs] % CURRENT_STATE.REGS[rt];  //get remainder
-                    break;
-                }
-                //DIVU
-                case 0x0000001B: {
-
-
-                    //if either of the 2 preceding instructions were MFLO or MFHI, result is undefined
-                    if (prevInstruction == 0x0000012 || prevInstruction == 0x0000011 || CURRENT_STATE.REGS[rt] == 0) {
-                        puts("Result is undefined");
-                        break;
-                    }
-
-                    NEXT_STATE.LO = CURRENT_STATE.REGS[rs] / CURRENT_STATE.REGS[rt]; //get quotient
-                    NEXT_STATE.HI = CURRENT_STATE.REGS[rs] % CURRENT_STATE.REGS[rt];  //get remainder
-                    break;
-                }
-	            //AND
-	            case 0x00000024:{
-                    NEXT_STATE.REGS[rd] = CURRENT_STATE.REGS[rs] & CURRENT_STATE.REGS[rt];
-                    break;
-	            }
-	            //or
-	            case 0x00000025:{
-
-                    NEXT_STATE.REGS[rd] = CURRENT_STATE.REGS[rs] || CURRENT_STATE.REGS[rt];
-	                break;
-	            }
-	            //xor
-	            case 0x00000026:{
-                    NEXT_STATE.REGS[rd] = CURRENT_STATE.REGS[rs] ^ CURRENT_STATE.REGS[rt];
-                    break;
-	            }
-	            //NOR
-	            case 0x00000027:{
-	                NEXT_STATE.REGS[rd] = ~(CURRENT_STATE.REGS[rs] | CURRENT_STATE.REGS[rt]);
-	                break;
-	            }
-	            //SLT
-	            case 0x0000002A:{
-	                if(CURRENT_STATE.REGS[rs] < CURRENT_STATE.REGS[rt]){
-	                    NEXT_STATE.REGS[rd] = 0x00000001;
-	                }
-	                else{
-                        NEXT_STATE.REGS[rd] = 0x00000000;
-	                }
-	                break;
-	            }
-	            //SLL
-	            case 0x00000000:{
-	                uint32_t temp = CURRENT_STATE.REGS[rt] << sa;
-	                NEXT_STATE.REGS[rd] = temp;
-	                break;
-	            }
-	            //SRL
-                case 0x00000002:{
-                    uint32_t temp = CURRENT_STATE.REGS[rt] >> sa;
-                    NEXT_STATE.REGS[rd] = temp;
-                    break;
-                }
-	            //SRA
-                case 0x00000003:
-                {
-                    uint32_t temp;
-                    int x;
-                    uint32_t hiBit = CURRENT_STATE.REGS[rt] & 0x80000000;
-                    if(hiBit == 1)
-                    {
-                        temp = CURRENT_STATE.REGS[rt];
-                        for( x = 0; x < sa; x++ )
-                        {
-                            temp = ((temp >> 1) | 0x80000000);
-                        }
-                    }
-                    else
-                    {
-                        temp = CURRENT_STATE.REGS[rt] >> sa;
-                    }
-                    NEXT_STATE.REGS[rd] = temp;
-                    break;
-                }
-	            //JR
-                case 0x00000008:{
-                    uint32_t temp = CURRENT_STATE.REGS[rs];
-                    jump = temp - CURRENT_STATE.PC;
-                    break;
-                }
-	            //JALR
-                case 0x00000009:{
-                    uint32_t temp = CURRENT_STATE.REGS[rs];
-                    NEXT_STATE.REGS[rd] = CURRENT_STATE.PC + 0x8;
-                    jump = temp - CURRENT_STATE.PC;
-                    break;
-                }
-	            //MTLO
-                case 0x00000013:{
-                    NEXT_STATE.LO = CURRENT_STATE.REGS[rs];
-                    break;
-                }
-	            //MTHI
-                case 0x00000011:{
-                    NEXT_STATE.HI = CURRENT_STATE.REGS[rs];
-                    break;
-                }
-	            //MFLO
-                case 0x00000012:{
-                    NEXT_STATE.REGS[rd] = CURRENT_STATE.LO;
-                    break;
-                }
-	            //MFHI
-                case 0x00000010:{
-                    NEXT_STATE.REGS[rd] = CURRENT_STATE.HI;
-                    break;
-                }
-	            //SYSCALL
-                case 0x0000000C:
-                    //SYSCALL - System Call, exit the program.
-                    NEXT_STATE.REGS[0] = 0xA;
-                    puts( "Terminate" );
-                    RUN_FLAG = FALSE;
-                    break;
-            }
-			
+	
+	uint32_t instruction, opcode, function, rs, rt, rd, sa, immediate, target;
+	uint64_t product, p1, p2;
+	
+	uint32_t addr, data;
+	
+	int branch_jump = FALSE;
+	
+	printf("[0x%x]\t", CURRENT_STATE.PC);
+	
+	instruction = mem_read_32(CURRENT_STATE.PC);
+	
+	opcode = (instruction & 0xFC000000) >> 26;
+	function = instruction & 0x0000003F;
+	rs = (instruction & 0x03E00000) >> 21;
+	rt = (instruction & 0x001F0000) >> 16;
+	rd = (instruction & 0x0000F800) >> 11;
+	sa = (instruction & 0x000007C0) >> 6;
+	immediate = instruction & 0x0000FFFF;
+	target = instruction & 0x03FFFFFF;
+	
+	if(opcode == 0x00){
+		switch(function){
+			case 0x00: //SLL
+				NEXT_STATE.REGS[rd] = CURRENT_STATE.REGS[rt] << sa;
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x02: //SRL
+				NEXT_STATE.REGS[rd] = CURRENT_STATE.REGS[rt] >> sa;
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x03: //SRA 
+				if ((CURRENT_STATE.REGS[rt] & 0x80000000) == 1)
+				{
+					NEXT_STATE.REGS[rd] =  ~(~CURRENT_STATE.REGS[rt] >> sa );
+				}
+				else{
+					NEXT_STATE.REGS[rd] = CURRENT_STATE.REGS[rt] >> sa;
+				}
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x08: //JR
+				NEXT_STATE.PC = CURRENT_STATE.REGS[rs];
+				branch_jump = TRUE;
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x09: //JALR
+				NEXT_STATE.REGS[rd] = CURRENT_STATE.PC + 4;
+				NEXT_STATE.PC = CURRENT_STATE.REGS[rs];
+				branch_jump = TRUE;
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x0C: //SYSCALL
+				if(CURRENT_STATE.REGS[2] == 0xa){
+					RUN_FLAG = FALSE;
+					print_instruction(CURRENT_STATE.PC);
+				}
+				break;
+			case 0x10: //MFHI
+				NEXT_STATE.REGS[rd] = CURRENT_STATE.HI;
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x11: //MTHI
+				NEXT_STATE.HI = CURRENT_STATE.REGS[rs];
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x12: //MFLO
+				NEXT_STATE.REGS[rd] = CURRENT_STATE.LO;
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x13: //MTLO
+				NEXT_STATE.LO = CURRENT_STATE.REGS[rs];
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x18: //MULT
+				if ((CURRENT_STATE.REGS[rs] & 0x80000000) == 0x80000000){
+					p1 = 0xFFFFFFFF00000000 | CURRENT_STATE.REGS[rs];
+				}else{
+					p1 = 0x00000000FFFFFFFF & CURRENT_STATE.REGS[rs];
+				}
+				if ((CURRENT_STATE.REGS[rt] & 0x80000000) == 0x80000000){
+					p2 = 0xFFFFFFFF00000000 | CURRENT_STATE.REGS[rt];
+				}else{
+					p2 = 0x00000000FFFFFFFF & CURRENT_STATE.REGS[rt];
+				}
+				product = p1 * p2;
+				NEXT_STATE.LO = (product & 0X00000000FFFFFFFF);
+				NEXT_STATE.HI = (product & 0XFFFFFFFF00000000)>>32;
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x19: //MULTU
+				product = (uint64_t)CURRENT_STATE.REGS[rs] * (uint64_t)CURRENT_STATE.REGS[rt];
+				NEXT_STATE.LO = (product & 0X00000000FFFFFFFF);
+				NEXT_STATE.HI = (product & 0XFFFFFFFF00000000)>>32;
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x1A: //DIV 
+				if(CURRENT_STATE.REGS[rt] != 0)
+				{
+					NEXT_STATE.LO = (int32_t)CURRENT_STATE.REGS[rs] / (int32_t)CURRENT_STATE.REGS[rt];
+					NEXT_STATE.HI = (int32_t)CURRENT_STATE.REGS[rs] % (int32_t)CURRENT_STATE.REGS[rt];
+				}
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x1B: //DIVU
+				if(CURRENT_STATE.REGS[rt] != 0)
+				{
+					NEXT_STATE.LO = CURRENT_STATE.REGS[rs] / CURRENT_STATE.REGS[rt];
+					NEXT_STATE.HI = CURRENT_STATE.REGS[rs] % CURRENT_STATE.REGS[rt];
+				}
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x20: //ADD
+				NEXT_STATE.REGS[rd] = CURRENT_STATE.REGS[rs] + CURRENT_STATE.REGS[rt];
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x21: //ADDU 
+				NEXT_STATE.REGS[rd] = CURRENT_STATE.REGS[rt] + CURRENT_STATE.REGS[rs];
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x22: //SUB
+				NEXT_STATE.REGS[rd] = CURRENT_STATE.REGS[rs] - CURRENT_STATE.REGS[rt];
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x23: //SUBU
+				NEXT_STATE.REGS[rd] = CURRENT_STATE.REGS[rs] - CURRENT_STATE.REGS[rt];
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x24: //AND
+				NEXT_STATE.REGS[rd] = CURRENT_STATE.REGS[rs] & CURRENT_STATE.REGS[rt];
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x25: //OR
+				NEXT_STATE.REGS[rd] = CURRENT_STATE.REGS[rs] | CURRENT_STATE.REGS[rt];
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x26: //XOR
+				NEXT_STATE.REGS[rd] = CURRENT_STATE.REGS[rs] ^ CURRENT_STATE.REGS[rt];
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x27: //NOR
+				NEXT_STATE.REGS[rd] = ~(CURRENT_STATE.REGS[rs] | CURRENT_STATE.REGS[rt]);
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x2A: //SLT
+				if(CURRENT_STATE.REGS[rs] < CURRENT_STATE.REGS[rt]){
+					NEXT_STATE.REGS[rd] = 0x1;
+				}
+				else{
+					NEXT_STATE.REGS[rd] = 0x0;
+				}
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			default:
+				printf("Instruction at 0x%x is not implemented!\n", CURRENT_STATE.PC);
+				break;
 		}
-				
-        //I-type statement
-        default :
-        {
-            //rs mask
-            uint32_t rs = (0x03E00000 & ins) >> 21;
-            //rt mask
-            uint32_t rt = (0x001F0000 & ins) >> 16;
-            //im mask
-            uint32_t im = (0x00000FFFF& ins);
-
-            printf("\nI-type instruction\n"
-                   "rs : %x\n"
-                   "rt : %x\n"
-                   "im : %x\n",rs,rt,im);
-				   
-            switch (opcode)
-            {
-                case 0x20000000:
-                {
-                    //ADDI
-                    puts( "ADDI" );
-                    NEXT_STATE.REGS[rt] = extend_sign(im) + CURRENT_STATE.REGS[rs];
-                    break;
-
-                }
-                case 0x24000000:
-                {
-                    //ADDIU
-                    puts( "ADDIU" );
-                    NEXT_STATE.REGS[rt] = extend_sign(im) + CURRENT_STATE.REGS[rs];
-                    break;
-                }
-                case 0x30000000:
-                {
-                    //ANDI
-                    puts( "ANDI" );
-                    NEXT_STATE.REGS[rt] = (im & 0x0000FFFF) & CURRENT_STATE.REGS[rs];
-                    break;
-                }
-                case 0x34000000:
-                {
-                    //ORI
-                    puts( "ORI" );
-                    NEXT_STATE.REGS[rt] = (im & 0x0000FFFF) | CURRENT_STATE.REGS[rs];
-                    break;
-                }
-                case 0x38000000:
-                {
-                    //XORI
-                    puts( "XORI" );
-                    NEXT_STATE.REGS[rt] = (im & 0x0000FFFF) ^ CURRENT_STATE.REGS[rs];
-                    break;
-                }
-                case 0x28000000:
-                {
-                    //Set On Less Than Immediate
-                    puts("SLTI");
-					if(CURRENT_STATE.REGS[rs] < extend_sign(im))
-					{
-						NEXT_STATE.REGS[rt] = 1;
+	}
+	else{
+		switch(opcode){
+			case 0x01:
+				if(rt == 0x00000){ //BLTZ
+					if((CURRENT_STATE.REGS[rs] & 0x80000000) > 0){
+						NEXT_STATE.PC = CURRENT_STATE.PC + ( (immediate & 0x8000) > 0 ? (immediate | 0xFFFF0000)<<2 : (immediate & 0x0000FFFF)<<2);
+						branch_jump = TRUE;
 					}
-					else
-					{
-						NEXT_STATE.REGS[rt] = 0;
+					print_instruction(CURRENT_STATE.PC);
+				}
+				else if(rt == 0x00001){ //BGEZ
+					if((CURRENT_STATE.REGS[rs] & 0x80000000) == 0x0){
+						NEXT_STATE.PC = CURRENT_STATE.PC + ( (immediate & 0x8000) > 0 ? (immediate | 0xFFFF0000)<<2 : (immediate & 0x0000FFFF)<<2);
+						branch_jump = TRUE;
 					}
-                }
-                case 0x8C000000:
-                {
-                    //load word
-                    puts("LW");
-                    uint32_t offset = extend_sign( im );
-                    uint32_t eAddr = offset + CURRENT_STATE.REGS[rs];
-                    NEXT_STATE.REGS[rt] = mem_read_32( eAddr );
-                    break;
-                }
-                case 0x80000000:
-                {
-                    //Load Byte
-                    puts("LB");
-                    uint32_t offset = extend_sign( im );
-                    uint32_t eAddr = offset + CURRENT_STATE.REGS[rs];
-                    NEXT_STATE.REGS[rt] = 0x0000000F | mem_read_32( eAddr );
-                    break;
-
-                }
-                case 0x84000000:
-                {
-                    //Load Halfword
-                    puts("LH");
-                    uint32_t offset = extend_sign( im );
-                    uint32_t eAddr = offset + CURRENT_STATE.REGS[rs];
-                    NEXT_STATE.REGS[rt] = 0x000000FF | mem_read_32( eAddr );
-                    break;
-                }
-				case 0x3C000000:
-                {
-                    //Load Upper Immediate
-                    puts("LUI");
-                    NEXT_STATE.REGS[rt] = (im << 16);
-                    break;
-                }
-				case 0xAC000000:
-                {
-                    //Store word
-                    puts("SW");
-					uint32_t offset = extend_sign( im );
-					uint32_t eAddr = offset + CURRENT_STATE.REGS[rs];
-                    mem_write_32( eAddr, CURRENT_STATE.REGS[rt] );
-                    break;
-                }
-				case 0xA000000:
-				{
-					//Store byte
-                    puts("SB");
-					uint32_t offset = extend_sign( im );
-					uint32_t eAddr = offset + CURRENT_STATE.REGS[rs];
-                    mem_write_32( eAddr, CURRENT_STATE.REGS[rt] );
-                    break;
+					print_instruction(CURRENT_STATE.PC);
 				}
-				case 0xA4000000:
-				{
-					//Store Halfwood
-					puts("SH");
-					uint32_t offset = extend_sign( im );
-					uint32_t eAddr = offset + CURRENT_STATE.REGS[rs];
-                    mem_write_32( eAddr, CURRENT_STATE.REGS[rt] );
-                    break;
+				break;
+			case 0x02: //J
+				NEXT_STATE.PC = (CURRENT_STATE.PC & 0xF0000000) | (target << 2);
+				branch_jump = TRUE;
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x03: //JAL
+				NEXT_STATE.PC = (CURRENT_STATE.PC & 0xF0000000) | (target << 2);
+				NEXT_STATE.REGS[31] = CURRENT_STATE.PC + 4;
+				branch_jump = TRUE;
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x04: //BEQ
+				if(CURRENT_STATE.REGS[rs] == CURRENT_STATE.REGS[rt]){
+					NEXT_STATE.PC = CURRENT_STATE.PC + ( (immediate & 0x8000) > 0 ? (immediate | 0xFFFF0000)<<2 : (immediate & 0x0000FFFF)<<2);
+					branch_jump = TRUE;
 				}
-				case 0x10000000:
-				{
-					//BEQ
-					uint32_t tar = extend_sign( im ) << 2;
-					if( CURRENT_STATE.REGS[rs] == CURRENT_STATE.REGS[rt] )
-					{
-						jump = tar;
-					}
-					break;
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x05: //BNE
+				if(CURRENT_STATE.REGS[rs] != CURRENT_STATE.REGS[rt]){
+					NEXT_STATE.PC = CURRENT_STATE.PC + ( (immediate & 0x8000) > 0 ? (immediate | 0xFFFF0000)<<2 : (immediate & 0x0000FFFF)<<2);
+					branch_jump = TRUE;
 				}
-				case 0x14000000:
-				{
-					//Branch on Not Equal
-					puts("BNE");
-					uint32_t tar = extend_sign( im ) << 2;
-					if( CURRENT_STATE.REGS[rs] != CURRENT_STATE.REGS[rt] )
-					{
-						jump = tar;
-					}
-                    break;
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x06: //BLEZ
+				if((CURRENT_STATE.REGS[rs] & 0x80000000) > 0 || CURRENT_STATE.REGS[rs] == 0){
+					NEXT_STATE.PC = CURRENT_STATE.PC +  ( (immediate & 0x8000) > 0 ? (immediate | 0xFFFF0000)<<2 : (immediate & 0x0000FFFF)<<2);
+					branch_jump = TRUE;
 				}
-				case 0x18000000:
-				{
-					//Branch on Less Than or Equal to Zero
-					puts("BLEZ");
-					uint32_t tar = extend_sign( im ) << 2;
-					if( ( CURRENT_STATE.REGS[rs] & 0x80000000 ) || ( CURRENT_STATE.REGS[rt] == 0 ) )
-					{
-						jump = tar;
-					}
-                    break;
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x07: //BGTZ
+				if((CURRENT_STATE.REGS[rs] & 0x80000000) == 0x0 || CURRENT_STATE.REGS[rs] != 0){
+					NEXT_STATE.PC = CURRENT_STATE.PC +  ( (immediate & 0x8000) > 0 ? (immediate | 0xFFFF0000)<<2 : (immediate & 0x0000FFFF)<<2);
+					branch_jump = TRUE;
 				}
-				case 0x1C000000:
-				{
-					//Branch on Greater Than Zero
-					puts("BGTZ");
-					uint32_t tar = extend_sign( im ) << 2;
-					if( !( CURRENT_STATE.REGS[rs] & 0x80000000 ) || ( CURRENT_STATE.REGS[rt] != 0 ) )
-					{
-						jump = tar;
-					}
-					break;
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x08: //ADDI
+				NEXT_STATE.REGS[rt] = CURRENT_STATE.REGS[rs] + ( (immediate & 0x8000) > 0 ? (immediate | 0xFFFF0000) : (immediate & 0x0000FFFF));
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x09: //ADDIU
+				NEXT_STATE.REGS[rt] = CURRENT_STATE.REGS[rs] + ( (immediate & 0x8000) > 0 ? (immediate | 0xFFFF0000) : (immediate & 0x0000FFFF));
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x0A: //SLTI
+				if ( (  (int32_t)CURRENT_STATE.REGS[rs] - (int32_t)( (immediate & 0x8000) > 0 ? (immediate | 0xFFFF0000) : (immediate & 0x0000FFFF))) < 0){
+					NEXT_STATE.REGS[rt] = 0x1;
+				}else{
+					NEXT_STATE.REGS[rt] = 0x0;
 				}
-				case 0x04000000:
-				{
-					//REGIMM
-					switch(rt)
-					{
-						case 0x00000000:
-						{
-							//Branch On Less Than Zer0
-							puts("BLTZ");
-							uint32_t tar = ( extend_sign( im ) << 2 );
-							if( ( CURRENT_STATE.REGS[rs] & 0x80000000 ) )
-							{
-								jump = tar;
-							}
-							break;
-						}
-						case 0x00000001:
-						{
-							//BGEZ - Branch on Greater Than or Equal to Zero
-							uint32_t tar = ( extend_sign( im ) << 2 );
-							if( !( CURRENT_STATE.REGS[rs] & 0x80000000 ) )
-							{
-								jump = tar;
-							}
-							break;
-						}
-					}
-				}
-            }
-			break;
-        }
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x0C: //ANDI
+				NEXT_STATE.REGS[rt] = CURRENT_STATE.REGS[rs] & (immediate & 0x0000FFFF);
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x0D: //ORI
+				NEXT_STATE.REGS[rt] = CURRENT_STATE.REGS[rs] | (immediate & 0x0000FFFF);
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x0E: //XORI
+				NEXT_STATE.REGS[rt] = CURRENT_STATE.REGS[rs] ^ (immediate & 0x0000FFFF);
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x0F: //LUI
+				NEXT_STATE.REGS[rt] = immediate << 16;
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x20: //LB
+				data = mem_read_32( CURRENT_STATE.REGS[rs] + ( (immediate & 0x8000) > 0 ? (immediate | 0xFFFF0000) : (immediate & 0x0000FFFF)) );
+				NEXT_STATE.REGS[rt] = ((data & 0x000000FF) & 0x80) > 0 ? (data | 0xFFFFFF00) : (data & 0x000000FF);
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x21: //LH
+				data = mem_read_32( CURRENT_STATE.REGS[rs] + ( (immediate & 0x8000) > 0 ? (immediate | 0xFFFF0000) : (immediate & 0x0000FFFF)) );
+				NEXT_STATE.REGS[rt] = ((data & 0x0000FFFF) & 0x8000) > 0 ? (data | 0xFFFF0000) : (data & 0x0000FFFF);
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x23: //LW
+				NEXT_STATE.REGS[rt] = mem_read_32( CURRENT_STATE.REGS[rs] + ( (immediate & 0x8000) > 0 ? (immediate | 0xFFFF0000) : (immediate & 0x0000FFFF)) );
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x28: //SB
+				addr = CURRENT_STATE.REGS[rs] + ( (immediate & 0x8000) > 0 ? (immediate | 0xFFFF0000) : (immediate & 0x0000FFFF));
+				data = mem_read_32( addr);
+				data = (data & 0xFFFFFF00) | (CURRENT_STATE.REGS[rt] & 0x000000FF);
+				mem_write_32(addr, data);
+				print_instruction(CURRENT_STATE.PC);				
+				break;
+			case 0x29: //SH
+				addr = CURRENT_STATE.REGS[rs] + ( (immediate & 0x8000) > 0 ? (immediate | 0xFFFF0000) : (immediate & 0x0000FFFF));
+				data = mem_read_32( addr);
+				data = (data & 0xFFFF0000) | (CURRENT_STATE.REGS[rt] & 0x0000FFFF);
+				mem_write_32(addr, data);
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			case 0x2B: //SW
+				addr = CURRENT_STATE.REGS[rs] + ( (immediate & 0x8000) > 0 ? (immediate | 0xFFFF0000) : (immediate & 0x0000FFFF));
+				mem_write_32(addr, CURRENT_STATE.REGS[rt]);
+				print_instruction(CURRENT_STATE.PC);
+				break;
+			default:
+				// put more things here
+				printf("Instruction at 0x%x is not implemented!\n", CURRENT_STATE.PC);
+				break;
+		}
 	}
 	
-	NEXT_STATE.PC = CURRENT_STATE.PC + jump;
+	if(!branch_jump){
+		NEXT_STATE.PC = CURRENT_STATE.PC + 4;
+	}
 }
 
 
@@ -774,488 +628,173 @@ void print_program(){
 /************************************************************/
 /* Print the instruction at given memory address (in MIPS assembly format)    */
 /************************************************************/
-void print_instruction(uint32_t addr)
-{
-	uint32_t ins = mem_read_32(addr);
-	uint32_t opcode = (0xFC000000 & ins);
-	switch (opcode)
-	{
-		//R-Type statement
-		case 0x00000000: 
-		{
-			//rs mask
-	        uint32_t rs = (0x03E00000 & ins) >> 21;
-	        //rt mask
-	        uint32_t rt = (0x001F0000 & ins) >> 16;
-	        //rd mask
-	        uint32_t rd = (0x0000F800 & ins) >> 11;
-	        //sa mask
-	        uint32_t sa = (0x000007C0 & ins) >> 6;
-	        //func mask
-	        uint32_t func = (0x0000003F & ins); 
-			switch(func)
-			{
-                case 0x00000000:
-                {
-                    //rs MASK: 0000 0011 1110 0000 4x0000 = 03E00000
-                    uint32_t rs = ( 0x03E00000 & ins  ) >> 21;
-                    //rt MASK: 0000 0000 0001 1111 4x0000 = 001F0000;
-                    uint32_t rt = ( 0x001F0000 & ins  ) >> 16;
-                    //rd MASK: 4x0000 1111 1000 0000 0000 = 0000F800;
-                    uint32_t rd = ( 0x0000F800 & ins  ) >> 11;
-                    //sa MASK: 4X0000 0000 0111 1100 0000 = 000007C0;
-                    uint32_t sa = ( 0x000007C0 & ins  ) >> 6;
-                    //func MASK: 6x0000 0001 1111 = 0000001F
-                    uint32_t func = ( 0x0000003F & ins );
-
-                    switch( func )
-                    {
-                        case 0x00000020:
-                            //ADD
-                            printf( "\n\nADD Instruction:"
-                                    "\n-> OC: %x"
-                                    "\n-> rs: %x"
-                                    "\n-> rt: %x"
-                                    "\n-> rd: %x"
-                                    "\n-> shamt: %x"
-                                    "\n-> func: %x\n",
-                                    opcode, rs, rt, rd, sa, func );
-                            break;
-
-                        case 0x00000021:
-                            //ADDU
-                            printf( "\n\nADDU Instruction:"
-                                    "\n-> OC: %x"
-                                    "\n-> rs: %x"
-                                    "\n-> rt: %x"
-                                    "\n-> rd: %x"
-                                    "\n-> shamt: %x"
-                                    "\n-> func: %x\n",
-                                    opcode, rs, rt, rd, sa, func );
-                            break;
-
-                        case 0x00000022:
-                            //SUB
-                            printf( "\n\nSUB Instruction:"
-                                    "\n-> OC: %x"
-                                    "\n-> rs: %x"
-                                    "\n-> rt: %x"
-                                    "\n-> rd: %x"
-                                    "\n-> shamt: %x"
-                                    "\n-> func: %x\n",
-                                    opcode, rs, rt, rd, sa, func );
-                            break;
-
-                        case 0x00000023:
-                            //SUBU
-                            puts( "Subtract Unsigned Function" );
-                            printf( "\n\nSUBU Instruction:"
-                                    "\n-> OC: %x"
-                                    "\n-> rs: %x"
-                                    "\n-> rt: %x"
-                                    "\n-> rd: %x"
-                                    "\n-> shamt: %x"
-                                    "\n-> func: %x\n",
-                                    opcode, rs, rt, rd, sa, func );
-                            break;
-
-                        case 0x00000018:
-                        {
-                            //MULT
-                            printf( "\n\nMULT Instruction:"
-                                    "\n-> OC: %x"
-                                    "\n-> rs: %x"
-                                    "\n-> rt: %x"
-                                    "\n-> rd: %x"
-                                    "\n-> shamt: %x"
-                                    "\n-> func: %x\n",
-                                    opcode, rs, rt, rd, sa, func );
-                            break;
-                        }
-
-                        case 0x00000019:
-                        {
-                            //MULTU
-                            printf( "\n\nMULTU Instruction:"
-                                    "\n-> OC: %x"
-                                    "\n-> rs: %x"
-                                    "\n-> rt: %x"
-                                    "\n-> rd: %x"
-                                    "\n-> shamt: %x"
-                                    "\n-> func: %x\n",
-                                    opcode, rs, rt, rd, sa, func );
-                            break;
-                        }
-
-                        case 0x0000001A:
-                            //DIV
-                            printf( "\n\nDIV Instruction:"
-                                    "\n-> OC: %x"
-                                    "\n-> rs: %x"
-                                    "\n-> rt: %x"
-                                    "\n-> rd: %x"
-                                    "\n-> shamt: %x"
-                                    "\n-> func: %x\n",
-                                    opcode, rs, rt, rd, sa, func );
-                            break;
-
-                        case 0x0000001B:
-                            //DIVU
-                            printf( "\n\nDIVU Instruction:"
-                                    "\n-> OC: %x"
-                                    "\n-> rs: %x"
-                                    "\n-> rt: %x"
-                                    "\n-> rd: %x"
-                                    "\n-> shamt: %x"
-                                    "\n-> func: %x\n",
-                                    opcode, rs, rt, rd, sa, func );
-                            break;
-
-                        case 0X00000024:
-                            //AND
-                            printf( "\n\nAND Instruction:"
-                                    "\n-> OC: %x"
-                                    "\n-> rs: %x"
-                                    "\n-> rt: %x"
-                                    "\n-> rd: %x"
-                                    "\n-> shamt: %x"
-                                    "\n-> func: %x\n",
-                                    opcode, rs, rt, rd, sa, func );
-                            break;
-
-                        case 0X00000025:
-                            //OR
-                            printf( "\n\nOR Instruction:"
-                                    "\n-> OC: %x"
-                                    "\n-> rs: %x"
-                                    "\n-> rt: %x"
-                                    "\n-> rd: %x"
-                                    "\n-> shamt: %x"
-                                    "\n-> func: %x\n",
-                                    opcode, rs, rt, rd, sa, func );
-                            break;
-
-                        case 0X00000026:
-                            //XOR
-                            printf( "\n\nXOR Instruction:"
-                                    "\n-> OC: %x"
-                                    "\n-> rs: %x"
-                                    "\n-> rt: %x"
-                                    "\n-> rd: %x"
-                                    "\n-> shamt: %x"
-                                    "\n-> func: %x\n",
-                                    opcode, rs, rt, rd, sa, func );
-                            break;
-
-                        case 0x00000027:
-                            //NOR
-                            printf( "\n\nNOR Instruction:"
-                                    "\n-> OC: %x"
-                                    "\n-> rs: %x"
-                                    "\n-> rt: %x"
-                                    "\n-> rd: %x"
-                                    "\n-> shamt: %x"
-                                    "\n-> func: %x\n",
-                                    opcode, rs, rt, rd, sa, func );
-                            break;
-
-                        case 0x0000002A:
-                            //SLT
-                            printf( "\n\nSLTs Instruction:"
-                                    "\n-> OC: %x"
-                                    "\n-> rs: %x"
-                                    "\n-> rt: %x"
-                                    "\n-> rd: %x"
-                                    "\n-> shamt: %x"
-                                    "\n-> func: %x\n",
-                                    opcode, rs, rt, rd, sa, func );
-                            break;
-
-                        case 0x00000000:
-                        {
-                            //SLL
-                            printf( "\n\nSLL Instruction:"
-                                    "\n-> OC: %x"
-                                    "\n-> rs: %x"
-                                    "\n-> rt: %x"
-                                    "\n-> rd: %x"
-                                    "\n-> shamt: %x"
-                                    "\n-> func: %x\n",
-                                    opcode, rs, rt, rd, sa, func );
-                            break;
-                        }
-
-                        case 0x00000002:
-                        {
-                            //SRL
-                            printf( "\n\nSRL Instruction:"
-                                    "\n-> OC: %x"
-                                    "\n-> rs: %x"
-                                    "\n-> rt: %x"
-                                    "\n-> rd: %x"
-                                    "\n-> shamt: %x"
-                                    "\n-> func: %x\n",
-                                    opcode, rs, rt, rd, sa, func );
-                            break;
-                        }
-
-                        case 0x00000003:
-                        {
-                            //SRA
-                            printf( "\n\nSRA Instruction:"
-                                    "\n-> OC: %x"
-                                    "\n-> rs: %x"
-                                    "\n-> rt: %x"
-                                    "\n-> rd: %x"
-                                    "\n-> shamt: %x"
-                                    "\n-> func: %x\n",
-                                    opcode, rs, rt, rd, sa, func );
-                            break;
-                        }
-                        case 0x0000000C:
-                            //SYSCALL - System Call, exit the program.
-                            printf( "\n\nSYSCALL(exit) Instruction:"
-                                    "\n-> OC: %x"
-                                    "\n-> rs: %x"
-                                    "\n-> rt: %x"
-                                    "\n-> rd: %x"
-                                    "\n-> shamt: %x"
-                                    "\n-> func: %x\n",
-                                    opcode, rs, rt, rd, sa, func );
-                            break;
-
-                        case 0x00000008:
-                            //JR
-                            printf( "\n\nJR Instruction:"
-                                    "\n-> OC: %x"
-                                    "\n-> rs: %x"
-                                    "\n-> rt: %x"
-                                    "\n-> rd: %x"
-                                    "\n-> shamt: %x"
-                                    "\n-> func: %x\n",
-                                    opcode, rs, rt, rd, sa, func );
-                            break;
-                        case 0x00000009:
-                            //JALR
-                            printf( "\n\nJALR Instruction:"
-                                    "\n-> OC: %x"
-                                    "\n-> rs: %x"
-                                    "\n-> rt: %x"
-                                    "\n-> rd: %x"
-                                    "\n-> shamt: %x"
-                                    "\n-> func: %x\n",
-                                    opcode, rs, rt, rd, sa, func );
-                            break;
-
-                        case 0x00000013:
-                            //MTLO
-                            printf( "\n\nMTLO Instruction:"
-                                    "\n-> OC: %x"
-                                    "\n-> rs: %x"
-                                    "\n-> rt: %x"
-                                    "\n-> rd: %x"
-                                    "\n-> shamt: %x"
-                                    "\n-> func: %x\n",
-                                    opcode, rs, rt, rd, sa, func );
-                            break;
-
-                        case 0x0000011:
-                            //MTHI
-                            printf( "\n\nMTHI Instruction:"
-                                    "\n-> OC: %x"
-                                    "\n-> rs: %x"
-                                    "\n-> rt: %x"
-                                    "\n-> rd: %x"
-                                    "\n-> shamt: %x"
-                                    "\n-> func: %x\n",
-                                    opcode, rs, rt, rd, sa, func );
-                            break;
-
-                        case 0x0000012:
-                            //MFLO
-                            printf( "\n\nMFLO Instruction:"
-                                    "\n-> OC: %x"
-                                    "\n-> rs: %x"
-                                    "\n-> rt: %x"
-                                    "\n-> rd: %x"
-                                    "\n-> shamt: %x"
-                                    "\n-> func: %x\n",
-                                    opcode, rs, rt, rd, sa, func );
-                            break;
-
-                        case 0x0000010:
-                            //MFHI
-                            printf( "\n\nMFHI Instruction:"
-                                    "\n-> OC: %x"
-                                    "\n-> rs: %x"
-                                    "\n-> rt: %x"
-                                    "\n-> rd: %x"
-                                    "\n-> shamt: %x"
-                                    "\n-> func: %x\n",
-                                    opcode, rs, rt, rd, sa, func );
-                            break;
-                    }
-                    prevInstruction = func;
-                    break;
-
-                }
-                case 0x08000000:
-                {
-                    //JL
-                    uint32_t target = ( 0x03FFFFFF & ins  );
-                    printf( "\n\nJL Instruction:"
-                            "\n-> OC: %x"
-                            "\n-> target: %x\n",
-                            opcode, target );
-                    break;
-                }
-
-                case 0x0C000000:
-                {
-                    //JAL-Jump and Link Instruction
-                    uint32_t target = ( 0x03FFFFFF & ins  );
-                    printf( "\n\nJAL Instruction:"
-                            "\n-> OC: %x"
-                            "\n-> target: %x\n",
-                            opcode, target );
-                    break;
-                }
-			}
+void print_instruction(uint32_t addr){
+	uint32_t instruction, opcode, function, rs, rt, rd, sa, immediate, target;
+	
+	instruction = mem_read_32(addr);
+	
+	opcode = (instruction & 0xFC000000) >> 26;
+	function = instruction & 0x0000003F;
+	rs = (instruction & 0x03E00000) >> 21;
+	rt = (instruction & 0x001F0000) >> 16;
+	rd = (instruction & 0x0000F800) >> 11;
+	sa = (instruction & 0x000007C0) >> 6;
+	immediate = instruction & 0x0000FFFF;
+	target = instruction & 0x03FFFFFF;
+	
+	if(opcode == 0x00){
+		/*R format instructions here*/
+		
+		switch(function){
+			case 0x00:
+				printf("SLL $r%u, $r%u, 0x%x\n", rd, rt, sa);
+				break;
+			case 0x02:
+				printf("SRL $r%u, $r%u, 0x%x\n", rd, rt, sa);
+				break;
+			case 0x03:
+				printf("SRA $r%u, $r%u, 0x%x\n", rd, rt, sa);
+				break;
+			case 0x08:
+				printf("JR $r%u\n", rs);
+				break;
+			case 0x09:
+				if(rd == 31){
+					printf("JALR $r%u\n", rs);
+				}
+				else{
+					printf("JALR $r%u, $r%u\n", rd, rs);
+				}
+				break;
+			case 0x0C:
+				printf("SYSCALL\n");
+				break;
+			case 0x10:
+				printf("MFHI $r%u\n", rd);
+				break;
+			case 0x11:
+				printf("MTHI $r%u\n", rs);
+				break;
+			case 0x12:
+				printf("MFLO $r%u\n", rd);
+				break;
+			case 0x13:
+				printf("MTLO $r%u\n", rs);
+				break;
+			case 0x18:
+				printf("MULT $r%u, $r%u\n", rs, rt);
+				break;
+			case 0x19:
+				printf("MULTU $r%u, $r%u\n", rs, rt);
+				break;
+			case 0x1A:
+				printf("DIV $r%u, $r%u\n", rs, rt);
+				break;
+			case 0x1B:
+				printf("DIVU $r%u, $r%u\n", rs, rt);
+				break;
+			case 0x20:
+				printf("ADD $r%u, $r%u, $r%u\n", rd, rs, rt);
+				break;
+			case 0x21:
+				printf("ADDU $r%u, $r%u, $r%u\n", rd, rs, rt);
+				break;
+			case 0x22:
+				printf("SUB $r%u, $r%u, $r%u\n", rd, rs, rt);
+				break;
+			case 0x23:
+				printf("SUBU $r%u, $r%u, $r%u\n", rd, rs, rt);
+				break;
+			case 0x24:
+				printf("AND $r%u, $r%u, $r%u\n", rd, rs, rt);
+				break;
+			case 0x25:
+				printf("OR $r%u, $r%u, $r%u\n", rd, rs, rt);
+				break;
+			case 0x26:
+				printf("XOR $r%u, $r%u, $r%u\n", rd, rs, rt);
+				break;
+			case 0x27:
+				printf("NOR $r%u, $r%u, $r%u\n", rd, rs, rt);
+				break;
+			case 0x2A:
+				printf("SLT $r%u, $r%u, $r%u\n", rd, rs, rt);
+				break;
+			default:
+				printf("Instruction is not implemented!\n");
+				break;
 		}
-	//I-type statement
-    default :
-        {
-            //rs mask
-            uint32_t rs = (0x03E00000 & ins) >> 21;
-            //rt mask
-            uint32_t rt = (0x001F0000 & ins) >> 16;
-            //im mask
-            uint32_t im = (0x00000FFFF& ins);	   
-            switch (opcode)
-			{
-				case 0x20000000:
-				{
-					//ADDI
-					printf("\nADDI Instruction:\nOpcode: %x \nrs: %x\nrt: %x\nImmediate: %x\n", opcode,rs,rt,im);
-					break;
+	}
+	else{
+		switch(opcode){
+			case 0x01:
+				if(rt == 0){
+					printf("BLTZ $r%u, 0x%x\n", rs, immediate<<2);
 				}
-				case 0x24000000:
-				{
-					//ADDIU
-					printf("\nADDIU Instruction:\nOpcode: %x \nrs: %x\nrt: %x\nImmediate: %x\n", opcode,rs,rt,im);
-					break;
+				else if(rt == 1){
+					printf("BGEZ $r%u, 0x%x\n", rs, immediate<<2);
 				}
-				case 0x30000000:
-				{
-					//ANDI
-					printf("\nANDI Instruction:\nOpcode: %x \nrs: %x\nrt: %x\nImmediate: %x\n", opcode,rs,rt,im);
-					break;
-				}
-				case 0x34000000:
-				{
-					//ORI
-					printf("\nORI Instruction:\nOpcode: %x \nrs: %x\nrt: %x\nImmediate: %x\n", opcode,rs,rt,im);
-					break;
-				}
-				case 0x38000000:
-				{
-					//XORI
-					printf("\nXORI Instruction:\nOpcode: %x \nrs: %x\nrt: %x\nImmediate: %x\n", opcode,rs,rt,im);
-					break;
-				}
-				case 0x28000000:
-				{
-					//SLTI
-					printf("\nSLTI Instruction:\nOpcode: %x \nrs: %x\nrt: %x\nImmediate: %x\n", opcode,rs,rt,im);
-					break;
-				}
-				case 0x8C000000:
-				{
-					//LW
-					printf("\nLW Instruction:\nOpcode: %x \nrs: %x\nrt: %x\nImmediate: %x\n", opcode,rs,rt,im);
-					break;
-				}
-				case 0x80000000:
-				{
-					//LB
-					printf("\nLB Instruction:\nOpcode: %x \nrs: %x\nrt: %x\nImmediate: %x\n", opcode,rs,rt,im);
-					break;
-				}
-				case 0x84000000:
-				{
-					//LH
-					printf("\nLH Instruction:\nOpcode: %x \nrs: %x\nrt: %x\nImmediate: %x\n", opcode,rs,rt,im);
-					break;
-				}
-				case 0x3C000000:
-				{
-					//LUI
-					printf("\nLUI Instruction:\nOpcode: %x \nrs: %x\nrt: %x\nImmediate: %x\n", opcode,rs,rt,im);
-					break;
-				}
-				case 0xAC000000:
-				{
-					//SW
-					printf("\nSW Instruction:\nOpcode: %x \nrs: %x\nrt: %x\nImmediate: %x\n", opcode,rs,rt,im);
-					break;
-				}
-				case 0xA000000:
-				{
-					//SB
-					printf("\nSB Instruction:\nOpcode: %x \nrs: %x\nrt: %x\nImmediate: %x\n", opcode,rs,rt,im);
-					break;
-				}
-				case 0xA4000000:
-				{
-					//SH
-					printf("\nSH Instruction:\nOpcode: %x \nrs: %x\nrt: %x\nImmediate: %x\n", opcode,rs,rt,im);
-					break;
-				}
-				case 0x10000000:
-				{
-					//BEQ
-					printf("\nBEQ Instruction:\nOpcode: %x \nrs: %x\nrt: %x\nImmediate: %x\n", opcode,rs,rt,im);
-					break;
-				}
-				case 0x14000000:
-				{
-					//BNE
-					printf("\nBNE Instruction:\nOpcode: %x \nrs: %x\nrt: %x\nImmediate: %x\n", opcode,rs,rt,im);
-					break;
-				}
-				case 0x18000000:
-				{
-					//BLEZ
-					printf("\nBLEZ Instruction:\nOpcode: %x \nrs: %x\nrt: %x\nImmediate: %x\n", opcode,rs,rt,im);
-					break;
-				}
-				case 0x1C000000:
-				{
-					//BGTZ
-					printf("\nBGTZ Instruction:\nOpcode: %x \nrs: %x\nrt: %x\nImmediate: %x\n", opcode,rs,rt,im);
-					break;
-				}
-				case 0x04000000:
-				{
-					//REGIMM
-					switch(rt)
-					{
-						case 0x00000000:
-						{
-							//BLTZ
-							printf("\nBLTZ Instruction:\nOpcode: %x \nrs: %x\nrt: %x\nImmediate: %x\n", opcode,rs,rt,im);
-							break;
-						}
-						case 0x00000001:
-						{
-							//BGEZ
-							printf("\nBGEZ Instruction:\nOpcode: %x \nrs: %x\nrt: %x\nImmediate: %x\n", opcode,rs,rt,im);
-							break;
-						}
-						break;
-					}
-				}
-			}
+				break;
+			case 0x02:
+				printf("J 0x%x\n", (addr & 0xF0000000) | (target<<2));
+				break;
+			case 0x03:
+				printf("JAL 0x%x\n", (addr & 0xF0000000) | (target<<2));
+				break;
+			case 0x04:
+				printf("BEQ $r%u, $r%u, 0x%x\n", rs, rt, immediate<<2);
+				break;
+			case 0x05:
+				printf("BNE $r%u, $r%u, 0x%x\n", rs, rt, immediate<<2);
+				break;
+			case 0x06:
+				printf("BLEZ $r%u, 0x%x\n", rs, immediate<<2);
+				break;
+			case 0x07:
+				printf("BGTZ $r%u, 0x%x\n", rs, immediate<<2);
+				break;
+			case 0x08:
+				printf("ADDI $r%u, $r%u, 0x%x\n", rt, rs, immediate);
+				break;
+			case 0x09:
+				printf("ADDIU $r%u, $r%u, 0x%x\n", rt, rs, immediate);
+				break;
+			case 0x0A:
+				printf("SLTI $r%u, $r%u, 0x%x\n", rt, rs, immediate);
+				break;
+			case 0x0C:
+				printf("ANDI $r%u, $r%u, 0x%x\n", rt, rs, immediate);
+				break;
+			case 0x0D:
+				printf("ORI $r%u, $r%u, 0x%x\n", rt, rs, immediate);
+				break;
+			case 0x0E:
+				printf("XORI $r%u, $r%u, 0x%x\n", rt, rs, immediate);
+				break;
+			case 0x0F:
+				printf("LUI $r%u, 0x%x\n", rt, immediate);
+				break;
+			case 0x20:
+				printf("LB $r%u, 0x%x($r%u)\n", rt, immediate, rs);
+				break;
+			case 0x21:
+				printf("LH $r%u, 0x%x($r%u)\n", rt, immediate, rs);
+				break;
+			case 0x23:
+				printf("LW $r%u, 0x%x($r%u)\n", rt, immediate, rs);
+				break;
+			case 0x28:
+				printf("SB $r%u, 0x%x($r%u)\n", rt, immediate, rs);
+				break;
+			case 0x29:
+				printf("SH $r%u, 0x%x($r%u)\n", rt, immediate, rs);
+				break;
+			case 0x2B:
+				printf("SW $r%u, 0x%x($r%u)\n", rt, immediate, rs);
+				break;
+			default:
+				printf("Instruction is not implemented!\n");
+				break;
 		}
 	}
 }
@@ -1277,8 +816,7 @@ int main(int argc, char *argv[]) {
 	initialize();
 	load_program();
 	help();
-	while (1)
-	{
+	while (1){
 		handle_command();
 	}
 	return 0;
