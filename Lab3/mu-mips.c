@@ -410,10 +410,81 @@ void EX()
                         case 0x21: 
                             puts ("ADDU");
                             EX_MEM.ALUOutput = ID_EX.A + ID_EX.B;
+                            break;
                         
                         case 0x22: 
                             puts ("SUB");
                             EX_MEM.ALUOutput = ID_EX.A - ID_EX.B;
+                            break;
+                            
+                        case 0x23: 
+                            puts ("SUBU");
+                            EX_MEM.ALUOutput = ID_EX.A - ID_EX.B;
+                            break;
+                            
+                        case 0x18: 
+                            puts ("MULT");
+                            EX_MEM.ALUOutput = ID_EX.A * ID_EX.B;
+                            break;
+                            
+                        case 0x19: 
+                            puts ("MULTU");
+                            EX_MEM.ALUOutput = ID_EX.A * ID_EX.B;
+                            break;
+                            
+                        case 0x1A: 
+                            puts ("DIV");
+                            EX_MEM.ALUOutput = ID_EX.A / ID_EX.B;
+                            break;
+                            
+                        case 0x1B: 
+                            puts ("DIVU");
+                            EX_MEM.ALUOutput = ID_EX.A / ID_EX.B;
+                            break;
+                            
+                        case 0x24: 
+                            puts ("AND");
+                            EX_MEM.ALUOutput = ID_EX.A & ID_EX.B;
+                            break;
+                            
+                        case 0x25: 
+                            puts ("OR");
+                            EX_MEM.ALUOutput = ID_EX.A | ID_EX.B;
+                            break;
+                            
+                        case 0x26: 
+                            puts ("XOR");
+                            EX_MEM.ALUOutput = ID_EX.A ^ ID_EX.B;
+                            break;
+                            
+                        case 0x27: 
+                            puts ("NOR");
+                            EX_MEM.ALUOutput = ~( ID_EX.A | ID_EX.B );
+                            break;
+                            
+                        case 0x2A:
+                            puts ("SLT");
+                            if( ID_EX.A < ID_EX.B )
+                            {
+                                 EX_MEM.ALUOutput = 0x00000001;
+                            }
+                            else
+                            {
+                                 EX_MEM.ALUOutput = 0x00000000;
+                            }
+                            break;
+                            
+                        case 0x00:
+                            puts ("SLL");
+                            uint32_t sa = imm >> 6;
+                            EX_MEM.ALUOutput = ID_EX.B << sa;
+                            break;
+                            
+                        case 0x02:
+                            puts ("SRL");
+                            uint32_t sa = imm >> 6;
+                            EX_MEM.ALUOutput = ID_EX.B >> sa;
+                            break;
                         
                     }
         
