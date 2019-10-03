@@ -485,10 +485,130 @@ void EX()
                             uint32_t sa = imm >> 6;
                             EX_MEM.ALUOutput = ID_EX.B >> sa;
                             break;
-                        
+                            
+                        case 0x03:
+                            puts ("SRA");
+                            uint32_t sa = imm >> 6;
+                            EX_MEM.ALUOutput = extend_sign( ID_EX.B >> sa);
+                            break;
+                            
+                        case 0x0C:
+                            puts ("SYSCALL");
+                            EX_MEM.type = 4;
+                            break;
+                            
+                         case 0x13:
+                            puts ("MTLO");
+                            EX_MEM.LO = ID_EX.A ;
+                            break;
+                            
+                        case 0x11:
+                            puts ("MTHI");
+                            EX_MEM.HI = ID_EX.A ;
+                            break;
+                         
+                        case 0x12:
+                            puts ("MFLO");
+                            EX_MEM.ALUOutput = EX_MEM.LO ;
+                            break;
+                       
+                        case 0x10:
+                            puts ("MFHI");
+                            EX_MEM.ALUOutput =  EX_MEM.HI;
+                            break;
+                            
                     }
-        
-               
+                    break;
+        }
+        default
+        {
+            switch( oc )
+            {
+                case 0x20:
+                    puts ("ADDI");
+                    EX_MEM.ALUOutput = ID_EX.imm + ID_EX.A;
+                    EX_MEM.type = 1;
+                    break;
+                    
+                case 0x24:
+                    puts ("ADDIU");
+                    EX_MEM.ALUOutput = ID_EX.imm + ID_EX.A;
+                    EX_MEM.type = 1;
+                    break;
+                            
+                case 0x30:
+                    puts ("ANDI");
+                    EX_MEM.ALUOutput = ( ID_EX.imm & 0x0000FFFF ) & ID_EX.A;
+                    EX_MEM.type = 1;
+                    break;
+                    
+                 case 0x3C:
+                    puts ("LUI");
+                    EX_MEM.ALUOutput = ID_EX.imm << 16;
+                    EX_MEM.type = 1;
+                    break;
+                    
+                case 0x38:
+                    puts ("XORI");
+                    EX_MEM.ALUOutput = ( ID_EX.imm & 0x0000FFFF ) ^ ID_EX.A;
+                    EX_MEM.type = 1;
+                    break;
+                    
+                case 0x34:
+                    puts ("ORI");
+                    EX_MEM.ALUOutput = ( ID_EX.imm & 0x0000FFFF ) | ID_EX.A;
+                    EX_MEM.type = 1;
+                    break;
+                    
+                 case 0xA0:
+                    puts ("SB");
+                    uint32_t eAddr = ID_EX.A + ID_EX.imm;              
+                    EX_MEM.ALUOutput = eAddr;
+                    EX_MEM.B = ID_EX.B;
+                    EX_MEM.type = 3;
+                    break;
+                    
+                case 0xAC:
+                    puts ("SW");
+                    uint32_t eAddr = ID_EX.A + ID_EX.imm;              
+                    EX_MEM.ALUOutput = eAddr;
+                    EX_MEM.B = ID_EX.B;
+                    EX_MEM.type = 3;
+                    break;
+                    
+                case 0xA4:
+                    puts ("SH");
+                    uint32_t eAddr = ID_EX.A + ID_EX.imm;              
+                    EX_MEM.ALUOutput = eAddr;
+                    EX_MEM.B = ID_EX.B;
+                    EX_MEM.type = 3;
+                    break;
+                    
+                 case 0x8C:
+                    puts ("LB");
+                    uint32_t eAddr = ID_EX.A + ID_EX.imm;              
+                    EX_MEM.ALUOutput = eAddr;
+                    EX_MEM.B = ID_EX.B;
+                    EX_MEM.type = 2;
+                    break;
+                    
+                case 0x80:
+                    puts ("LW");
+                    uint32_t eAddr = ID_EX.A + ID_EX.imm;              
+                    EX_MEM.ALUOutput = eAddr;
+                    EX_MEM.B = ID_EX.B;
+                    EX_MEM.type = 2;
+                    break;
+                    
+                case 0x84:
+                    puts ("LH");
+                    uint32_t eAddr = ID_EX.A + ID_EX.imm;              
+                    EX_MEM.ALUOutput = eAddr;
+                    EX_MEM.B = ID_EX.B;
+                    EX_MEM.type = 2;
+                    break;
+                
+            }
         }
         
 }
