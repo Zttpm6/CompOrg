@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <assert.h>
+#include <inttypes.h>
 
 #include "mu-mips.h"
 
@@ -389,12 +390,12 @@ void EX()
 	/*Zach Taylor*/
         
         //Load Instruction from Buffer
-        EX_MEM.IR = ID_EX.IR
+        EX_MEM.IR = ID_EX.IR;
         uint32_t opcode = ( 0xFC000000 & EX_MEM.IR  );
         uint32_t imm = ID_EX.imm;
         uint32_t func = (EX_MEM.IR & 0x0000003F);
         
-        switch( opcode )
+        switch(opcode)
         {
             //R-Type
             case 0x00000000: 
@@ -475,11 +476,12 @@ void EX()
                             break;
                             
                         case 0x00:
+                        {
                             puts ("SLL");
                             uint32_t sa = imm >> 6;
                             EX_MEM.ALUOutput = ID_EX.B << sa;
                             break;
-                            
+                        }
                         case 0x02:
                             puts ("SRL");
                             uint32_t sa = imm >> 6;
@@ -669,6 +671,22 @@ void print_program(){
 /************************************************************/
 void show_pipeline(){
 	/*Mostly OLA*/
+    printf("Current PC: %" PRIu32, CURRENT_STATE.PC);
+    printf("\nIF/ID.IR : %" PRIu32, IF_ID.IR);
+    printf("\nIF/ID.PC : %" PRIu32, IF_ID.PC);
+    printf("\n\nID/EX.IR : %"PRIu32, ID_EX.IR);
+    printf("\nID/EX.A : %" PRIu32, ID_EX.A);
+    printf("\nID/EX.B : %" PRIu32, ID_EX.B);
+    printf("\nID/EX.imm : %" PRIu32, ID_EX.imm);
+    printf("\n\nEX/MEM.IR : %"PRIu32, EX_MEM.IR);
+    printf("\nEM/MEM.A : %"PRIu32, EX_MEM.A);
+    printf("\nEX/MEM.B : %"PRIu32, EX_MEM.B);
+    printf("\nEX/MEM.ALUOutput : %"PRIu32, EX_MEM.ALUOutput);
+    printf("\n\nMEM/WB.IR : %" PRIu32, MEM_WB.IR);
+    printf("\nMEM_WB.ALUOutput : %" PRIu32, MEM_WB.ALUOutput);
+    printf("\nMEM_WB.LMD : %" PRIu32, MEM_WB.LMD);
+    printf("\n\n");
+
 }
 
 /***************************************************************/
