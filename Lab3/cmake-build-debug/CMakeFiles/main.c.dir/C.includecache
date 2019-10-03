@@ -1,0 +1,28 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/nfshome/zttpm6/Desktop/CompOrg/Lab3/mu-mips.c
+stdio.h
+-
+stdlib.h
+-
+string.h
+-
+stdint.h
+-
+assert.h
+-
+inttypes.h
+-
+mu-mips.h
+/nfshome/zttpm6/Desktop/CompOrg/Lab3/mu-mips.h
+
+/nfshome/zttpm6/Desktop/CompOrg/Lab3/mu-mips.h
+stdint.h
+-
+
