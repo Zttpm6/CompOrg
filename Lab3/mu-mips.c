@@ -346,16 +346,41 @@ void WB()
 	/*Zach Taylor*/
 	uint32_t rt = (0x001F0000 & MEM_WB.IR) >> 16;
 	uint32_t rd = (0x0000F800 & MEM_WB.IR) >> 11;
-	switch(EX_MEM.type) {
-        case (0):
-            NEXT_STATE.REGS[rd] = EX_MEM.ALUOutput;
-            break;
-        case 1:
-            NEXT_STATE.REGS[rt] = EX_MEM.ALUOutput;
-            break;
-        case 2:
-            NEXT_STATE.REGS[rt] = EX_MEM.LMD;
-    }
+    	
+    	++INSTRUCTION_COUNT;
+        
+	//This is the writeback stage, so we have to use MEM_WB because we're moving from MEM to WB
+	/*
+		OLD CODE:
+		switch(EX_MEM.type) 
+		{
+			case (0):
+			    NEXT_STATE.REGS[rd] = EX_MEM.ALUOutput;
+			    break;
+			case 1:
+			    NEXT_STATE.REGS[rt] = EX_MEM.ALUOutput;
+			    break;
+			case 2:
+			    NEXT_STATE.REGS[rt] = EX_MEM.LMD;
+	    	}
+	*/
+
+	switch(MEM_WB.type) 
+        {
+		case (0):
+		    NEXT_STATE.REGS[rd] = MEM_WB.ALUOutput;
+		    break;
+		case 1:
+		    NEXT_STATE.REGS[rt] = MEM_WB.ALUOutput;
+		    break;
+		case 2:
+		    NEXT_STATE.REGS[rt] = MEM_WB.LMD;
+                case 3:
+                    break;
+                case 4:
+                    RUN_FLAG = FALSE;
+                    break;
+    	}
 
 }
 
@@ -364,10 +389,18 @@ void WB()
 /************************************************************/
 void MEM()
 {
-	/*Zach Taylor*/
+	/*Zach Taylor*/        
+        
+        if( EX_MEM.IR == 0x0 )
+        {
+            MEM_WB.IR = EX_MEM.IR;
+            MEM_WB.ALUOutput = 0x0;
+            return;
+        }
         
         MEM_WB.IR = EX_MEM.IR;
-	    MEM_WB.type = EX_MEM.type;
+        MEM_WB.type = EX_MEM.type;
+        
         if(EX_MEM.type <= 1)
         {
                 MEM_WB.ALUOutput = EX_MEM.ALUOutput;
@@ -387,18 +420,27 @@ void MEM()
 /************************************************************/
 void EX()
 {
+        //if there is no intruction to be executed, just skip the rest. This prevents SLL (which has opcode 0x00) from running. V IMPORTANT
+        if( ID_EX.IR == 0x0 )
+        {
+            EX_MEM.IR = ID_EX.IR;
+            EX_MEM.ALUOutput = 0x0;
+            return;
+        }
+    
 	/*Zach Taylor*/
         
         //Load Instruction from Buffer
         EX_MEM.IR = ID_EX.IR;
-        uint32_t opcode = ( 0xFC000000 & EX_MEM.IR  );
+        uint32_t opcode = ( 0xFC000000 & ID_EX.IR  );
         uint32_t imm = ID_EX.imm;
-        uint32_t func = (EX_MEM.IR & 0x0000003F);
+        uint32_t func = (ID_EX.IR & 0x0000003F);
         
         switch(opcode)
         {
             //R-Type
-            case 0x00000000: 
+            case 0x00000000:
+            {
                 EX_MEM.type = 0;
                 
                     switch (func)
@@ -464,6 +506,7 @@ void EX()
                             break;
                             
                         case 0x2A:
+                        {
                             puts ("SLT");
                             if( ID_EX.A < ID_EX.B )
                             {
@@ -474,8 +517,8 @@ void EX()
                                  EX_MEM.ALUOutput = 0x00000000;
                             }
                             break;
-                            
-                        case 0x00:
+                        }
+                        case 0x00000000:
                         {
                             puts ("SLL");
                             uint32_t sa = imm >> 6;
@@ -483,16 +526,20 @@ void EX()
                             break;
                         }
                         case 0x02:
+                        {
                             puts ("SRL");
                             uint32_t sa = imm >> 6;
                             EX_MEM.ALUOutput = ID_EX.B >> sa;
                             break;
+                        }
                             
                         case 0x03:
+                        {
                             puts ("SRA");
                             uint32_t sa = imm >> 6;
                             EX_MEM.ALUOutput = extend_sign( ID_EX.B >> sa);
                             break;
+                        }
                             
                         case 0x0C:
                             puts ("SYSCALL");
@@ -521,95 +568,109 @@ void EX()
                             
                     }
                     break;
-        }
-        default
-        {
-            switch( oc )
+
+            }
+        default:
             {
-                case 0x20:
-                    puts ("ADDI");
-                    EX_MEM.ALUOutput = ID_EX.imm + ID_EX.A;
-                    EX_MEM.type = 1;
-                    break;
-                    
-                case 0x24:
-                    puts ("ADDIU");
-                    EX_MEM.ALUOutput = ID_EX.imm + ID_EX.A;
-                    EX_MEM.type = 1;
-                    break;
-                            
-                case 0x30:
-                    puts ("ANDI");
-                    EX_MEM.ALUOutput = ( ID_EX.imm & 0x0000FFFF ) & ID_EX.A;
-                    EX_MEM.type = 1;
-                    break;
-                    
-                 case 0x3C:
-                    puts ("LUI");
-                    EX_MEM.ALUOutput = ID_EX.imm << 16;
-                    EX_MEM.type = 1;
-                    break;
-                    
-                case 0x38:
-                    puts ("XORI");
-                    EX_MEM.ALUOutput = ( ID_EX.imm & 0x0000FFFF ) ^ ID_EX.A;
-                    EX_MEM.type = 1;
-                    break;
-                    
-                case 0x34:
-                    puts ("ORI");
-                    EX_MEM.ALUOutput = ( ID_EX.imm & 0x0000FFFF ) | ID_EX.A;
-                    EX_MEM.type = 1;
-                    break;
-                    
-                 case 0xA0:
-                    puts ("SB");
-                    uint32_t eAddr = ID_EX.A + ID_EX.imm;              
-                    EX_MEM.ALUOutput = eAddr;
-                    EX_MEM.B = ID_EX.B;
-                    EX_MEM.type = 3;
-                    break;
-                    
-                case 0xAC:
-                    puts ("SW");
-                    uint32_t eAddr = ID_EX.A + ID_EX.imm;              
-                    EX_MEM.ALUOutput = eAddr;
-                    EX_MEM.B = ID_EX.B;
-                    EX_MEM.type = 3;
-                    break;
-                    
-                case 0xA4:
-                    puts ("SH");
-                    uint32_t eAddr = ID_EX.A + ID_EX.imm;              
-                    EX_MEM.ALUOutput = eAddr;
-                    EX_MEM.B = ID_EX.B;
-                    EX_MEM.type = 3;
-                    break;
-                    
-                 case 0x8C:
-                    puts ("LB");
-                    uint32_t eAddr = ID_EX.A + ID_EX.imm;              
-                    EX_MEM.ALUOutput = eAddr;
-                    EX_MEM.B = ID_EX.B;
-                    EX_MEM.type = 2;
-                    break;
-                    
-                case 0x80:
-                    puts ("LW");
-                    uint32_t eAddr = ID_EX.A + ID_EX.imm;              
-                    EX_MEM.ALUOutput = eAddr;
-                    EX_MEM.B = ID_EX.B;
-                    EX_MEM.type = 2;
-                    break;
-                    
-                case 0x84:
-                    puts ("LH");
-                    uint32_t eAddr = ID_EX.A + ID_EX.imm;              
-                    EX_MEM.ALUOutput = eAddr;
-                    EX_MEM.B = ID_EX.B;
-                    EX_MEM.type = 2;
-                    break;
-                
+                switch( opcode )
+                {
+                    case 0x20000000:
+                        //don't remove 0's to the RIGHT of numbers, because they change the value. 0's to the left can be removed as desired.
+                        puts ("ADDI");
+                        EX_MEM.ALUOutput = ID_EX.imm + ID_EX.A;
+                        EX_MEM.type = 1;
+                        break;
+                        
+                    case 0x24000000:
+                        puts ("ADDIU");
+                        EX_MEM.ALUOutput = ID_EX.imm + ID_EX.A;
+                        EX_MEM.type = 1;
+                        break;
+                                
+                    case 0x30000000:
+                        puts ("ANDI");
+                        EX_MEM.ALUOutput = ( ID_EX.imm & 0x0000FFFF ) & ID_EX.A;
+                        EX_MEM.type = 1;
+                        break;
+                        
+                    case 0x3C000000:
+                        puts ("LUI");
+                        EX_MEM.ALUOutput = ID_EX.imm << 16;
+                        EX_MEM.type = 1;
+                        break;
+                        
+                    case 0x38000000:
+                        puts ("XORI");
+                        EX_MEM.ALUOutput = ( ID_EX.imm & 0x0000FFFF ) ^ ID_EX.A;
+                        EX_MEM.type = 1;
+                        break;
+                        
+                    case 0x34000000:
+                        puts ("ORI");
+                        EX_MEM.ALUOutput = ( ID_EX.imm & 0x0000FFFF ) | ID_EX.A;
+                        EX_MEM.type = 1;
+                        break;
+                        
+                    case 0xA0000000:
+                    {
+                        puts ("SB");
+                        uint32_t eAddr = ID_EX.A + ID_EX.imm;              
+                        EX_MEM.ALUOutput = eAddr;
+                        EX_MEM.B = ID_EX.B;
+                        EX_MEM.type = 3;
+                        break;
+                    }
+                        
+                    case 0xAC000000:
+                    {
+                        puts ("SW");
+                        uint32_t eAddr = ID_EX.A + ID_EX.imm;              
+                        EX_MEM.ALUOutput = eAddr;
+                        EX_MEM.B = ID_EX.B;
+                        EX_MEM.type = 3;
+                        break;
+                    }
+                        
+                    case 0xA4000000:
+                    {
+                        puts ("SH");
+                        uint32_t eAddr = ID_EX.A + ID_EX.imm;              
+                        EX_MEM.ALUOutput = eAddr;
+                        EX_MEM.B = ID_EX.B;
+                        EX_MEM.type = 3;
+                        break;
+                    }
+                        
+                    case 0x8C000000:
+                    {
+                        puts ("LB");
+                        uint32_t eAddr = ID_EX.A + ID_EX.imm;              
+                        EX_MEM.ALUOutput = eAddr;
+                        EX_MEM.B = ID_EX.B;
+                        EX_MEM.type = 2;
+                        break;
+                    }
+                        
+                    case 0x80000000:
+                    {
+                        puts ("LW");
+                        uint32_t eAddr = ID_EX.A + ID_EX.imm;              
+                        EX_MEM.ALUOutput = eAddr;
+                        EX_MEM.B = ID_EX.B;
+                        EX_MEM.type = 2;
+                        break;
+                    }
+                        
+                    case 0x84000000:
+                    {
+                        puts ("LH");
+                        uint32_t eAddr = ID_EX.A + ID_EX.imm;              
+                        EX_MEM.ALUOutput = eAddr;
+                        EX_MEM.B = ID_EX.B;
+                        EX_MEM.type = 2;
+                        break;
+                    }
+                }
             }
         }
         
@@ -634,6 +695,7 @@ void ID()
         ID_EX.imm = extend_sign( imm );
         ID_EX.LO = CURRENT_STATE.LO;
         ID_EX.HI = CURRENT_STATE.HI;
+
 }
 
 /************************************************************/
@@ -642,7 +704,8 @@ void ID()
 void IF()
 {
 	/*Ola*/
-	uint32_t instruction = mem_read_32(CURRENT_STATE.PC);
+	uint32_t instruction = mem_read_32( CURRENT_STATE.PC );
+        
 	IF_ID.IR = instruction;
 	NEXT_STATE.PC = CURRENT_STATE.PC + 0x4;
 	IF_ID.PC = NEXT_STATE.PC;
@@ -662,7 +725,8 @@ void initialize(){
 /************************************************************/
 /* Print the program loaded into memory (in MIPS assembly format)    */ 
 /************************************************************/
-void print_program(){
+void print_program()
+{
 	/*IMPLEMENT THIS*/
 }
 
@@ -692,7 +756,8 @@ void show_pipeline(){
 /***************************************************************/
 /* main                                                                                                                                   */
 /***************************************************************/
-int main(int argc, char *argv[]) {                              
+int main(int argc, char *argv[])
+{                              
 	printf("\n**************************\n");
 	printf("Welcome to MU-MIPS SIM...\n");
 	printf("**************************\n\n");
