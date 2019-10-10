@@ -9,6 +9,8 @@
 
 /***************************************************************/
 /* Print out a list of commands available                                                                  */
+void print_instruction(uint32_t addr);
+
 /***************************************************************/
 void help() {
     printf("------------------------------------------------------------------\n\n");
@@ -352,14 +354,18 @@ void WB()
     switch(MEM_WB.type)
     {
         case (0):
+            //printf(" rd : % " PRIu32, rd);
             NEXT_STATE.REGS[rd] = MEM_WB.ALUOutput;
             break;
         case 1:
+            //printf(" rt : % " PRIu32, rt);
             NEXT_STATE.REGS[rt] = MEM_WB.ALUOutput;
             break;
         case 2:
+            //printf(" rt : % " PRIu32, rt);
             NEXT_STATE.REGS[rt] = MEM_WB.LMD;
         case 3:
+           // printf(MEM_WB.ALUOutput);
             break;
         case 4:
             RUN_FLAG = FALSE;
@@ -369,12 +375,12 @@ void WB()
 }
 
 /************************************************************/
-/* memory access (MEM) pipeline stage:                                                          */
+/* memory access (MEM) pipeline stage:                           */
 /************************************************************/
 void MEM()
 {
     /*Zach Taylor*/
-
+    MEM_WB.PC = EX_MEM.PC;
     if( EX_MEM.IR == 0x0 )
     {
         MEM_WB.IR = EX_MEM.IR;
@@ -392,10 +398,16 @@ void MEM()
     if(EX_MEM.type <= 2)
     {
         MEM_WB.LMD = mem_read_32(EX_MEM.ALUOutput);
+        MEM_WB.ALUOutput = EX_MEM.ALUOutput;
     }
     if(EX_MEM.type <= 3)
     {
+
+        printf("\nEX_MEM.ALUOutput : %" PRIu32, EX_MEM.ALUOutput);
         mem_write_32(EX_MEM.ALUOutput, EX_MEM.B);
+        MEM_WB.ALUOutput = EX_MEM.ALUOutput;
+        //printf(EX_MEM.ALUOutput);
+        printf("\n");
     }
 }
 
@@ -415,6 +427,7 @@ void EX()
     /*Zach Taylor*/
 
     //Load Instruction from Buffer
+    EX_MEM.PC = ID_EX.PC;
     EX_MEM.IR = ID_EX.IR;
     uint32_t opcode = ( 0xFC000000 & ID_EX.IR  );
     uint32_t imm = ID_EX.imm;
@@ -525,11 +538,11 @@ void EX()
                     break;
                 }
 
-                case 0x0C:
-                    puts ("SYSCALL");
+                case 0x0C: {
+                    puts("SYSCALL");
                     EX_MEM.type = 4;
                     break;
-
+                }
                 case 0x13:
                     puts ("MTLO");
                     EX_MEM.LO = ID_EX.A ;
@@ -674,6 +687,7 @@ void ID()
 
     //Load data in ID->EX Buffer
 
+    ID_EX.PC = IF_ID.PC;
     ID_EX.A = CURRENT_STATE.REGS[rs];
     ID_EX.B = CURRENT_STATE.REGS[rt];
     ID_EX.imm = extend_sign( imm );
@@ -705,12 +719,190 @@ void initialize(){
     NEXT_STATE = CURRENT_STATE;
     RUN_FLAG = TRUE;
 }
+void print_program(){
+    int i;
+    uint32_t addr;
+
+    for(i=0; i<PROGRAM_SIZE; i++){
+        addr = MEM_TEXT_BEGIN + (i*4);
+        printf("[0x%x]\t", addr);
+        print_instruction(addr);
+    }
+}
+
+void print_instruction(uint32_t addr) {
 
 /************************************************************/
 /* Print the program loaded into memory (in MIPS assembly format)    */
 /************************************************************/
-void print_program()
-{
+    uint32_t instruction, opcode, function, rs, rt, rd, sa, immediate, target;
+
+    instruction = mem_read_32(addr);
+
+    opcode = (instruction & 0xFC000000) >> 26;
+    function = instruction & 0x0000003F;
+    rs = (instruction & 0x03E00000) >> 21;
+    rt = (instruction & 0x001F0000) >> 16;
+    rd = (instruction & 0x0000F800) >> 11;
+    sa = (instruction & 0x000007C0) >> 6;
+    immediate = instruction & 0x0000FFFF;
+    target = instruction & 0x03FFFFFF;
+
+    if(opcode == 0x00){
+        /*R format instructions here*/
+
+        switch(function){
+            case 0x00:
+                printf("SLL $r%u, $r%u, 0x%x\n", rd, rt, sa);
+                break;
+            case 0x02:
+                printf("SRL $r%u, $r%u, 0x%x\n", rd, rt, sa);
+                break;
+            case 0x03:
+                printf("SRA $r%u, $r%u, 0x%x\n", rd, rt, sa);
+                break;
+            case 0x08:
+                printf("JR $r%u\n", rs);
+                break;
+            case 0x09:
+                if(rd == 31){
+                    printf("JALR $r%u\n", rs);
+                }
+                else{
+                    printf("JALR $r%u, $r%u\n", rd, rs);
+                }
+                break;
+            case 0x0C:
+                printf("SYSCALL\n");
+                break;
+            case 0x10:
+                printf("MFHI $r%u\n", rd);
+                break;
+            case 0x11:
+                printf("MTHI $r%u\n", rs);
+                break;
+            case 0x12:
+                printf("MFLO $r%u\n", rd);
+                break;
+            case 0x13:
+                printf("MTLO $r%u\n", rs);
+                break;
+            case 0x18:
+                printf("MULT $r%u, $r%u\n", rs, rt);
+                break;
+            case 0x19:
+                printf("MULTU $r%u, $r%u\n", rs, rt);
+                break;
+            case 0x1A:
+                printf("DIV $r%u, $r%u\n", rs, rt);
+                break;
+            case 0x1B:
+                printf("DIVU $r%u, $r%u\n", rs, rt);
+                break;
+            case 0x20:
+                printf("ADD $r%u, $r%u, $r%u\n", rd, rs, rt);
+                break;
+            case 0x21:
+                printf("ADDU $r%u, $r%u, $r%u\n", rd, rs, rt);
+                break;
+            case 0x22:
+                printf("SUB $r%u, $r%u, $r%u\n", rd, rs, rt);
+                break;
+            case 0x23:
+                printf("SUBU $r%u, $r%u, $r%u\n", rd, rs, rt);
+                break;
+            case 0x24:
+                printf("AND $r%u, $r%u, $r%u\n", rd, rs, rt);
+                break;
+            case 0x25:
+                printf("OR $r%u, $r%u, $r%u\n", rd, rs, rt);
+                break;
+            case 0x26:
+                printf("XOR $r%u, $r%u, $r%u\n", rd, rs, rt);
+                break;
+            case 0x27:
+                printf("NOR $r%u, $r%u, $r%u\n", rd, rs, rt);
+                break;
+            case 0x2A:
+                printf("SLT $r%u, $r%u, $r%u\n", rd, rs, rt);
+                break;
+            default:
+                printf("Instruction is not implemented!\n");
+                break;
+        }
+    }
+    else{
+        switch(opcode){
+            case 0x01:
+                if(rt == 0){
+                    printf("BLTZ $r%u, 0x%x\n", rs, immediate<<2);
+                }
+                else if(rt == 1){
+                    printf("BGEZ $r%u, 0x%x\n", rs, immediate<<2);
+                }
+                break;
+            case 0x02:
+                printf("J 0x%x\n", (addr & 0xF0000000) | (target<<2));
+                break;
+            case 0x03:
+                printf("JAL 0x%x\n", (addr & 0xF0000000) | (target<<2));
+                break;
+            case 0x04:
+                printf("BEQ $r%u, $r%u, 0x%x\n", rs, rt, immediate<<2);
+                break;
+            case 0x05:
+                printf("BNE $r%u, $r%u, 0x%x\n", rs, rt, immediate<<2);
+                break;
+            case 0x06:
+                printf("BLEZ $r%u, 0x%x\n", rs, immediate<<2);
+                break;
+            case 0x07:
+                printf("BGTZ $r%u, 0x%x\n", rs, immediate<<2);
+                break;
+            case 0x08:
+                printf("ADDI $r%u, $r%u, 0x%x\n", rt, rs, immediate);
+                break;
+            case 0x09:
+                printf("ADDIU $r%u, $r%u, 0x%x\n", rt, rs, immediate);
+                break;
+            case 0x0A:
+                printf("SLTI $r%u, $r%u, 0x%x\n", rt, rs, immediate);
+                break;
+            case 0x0C:
+                printf("ANDI $r%u, $r%u, 0x%x\n", rt, rs, immediate);
+                break;
+            case 0x0D:
+                printf("ORI $r%u, $r%u, 0x%x\n", rt, rs, immediate);
+                break;
+            case 0x0E:
+                printf("XORI $r%u, $r%u, 0x%x\n", rt, rs, immediate);
+                break;
+            case 0x0F:
+                printf("LUI $r%u, 0x%x\n", rt, immediate);
+                break;
+            case 0x20:
+                printf("LB $r%u, 0x%x($r%u)\n", rt, immediate, rs);
+                break;
+            case 0x21:
+                printf("LH $r%u, 0x%x($r%u)\n", rt, immediate, rs);
+                break;
+            case 0x23:
+                printf("LW $r%u, 0x%x($r%u)\n", rt, immediate, rs);
+                break;
+            case 0x28:
+                printf("SB $r%u, 0x%x($r%u)\n", rt, immediate, rs);
+                break;
+            case 0x29:
+                printf("SH $r%u, 0x%x($r%u)\n", rt, immediate, rs);
+                break;
+            case 0x2B:
+                printf("SW $r%u, 0x%x($r%u)\n", rt, immediate, rs);
+                break;
+            default:
+                printf("Instruction is not implemented!\n");
+                break;
+        }
+    }
     /*IMPLEMENT THIS*/
 }
 
@@ -720,17 +912,28 @@ void print_program()
 void show_pipeline(){
     /*Mostly OLA*/
     printf("Current PC: %" PRIu32, CURRENT_STATE.PC);
-    printf("\nIF_ID.IR : %" PRIu32, IF_ID.IR);
+    //printf("\nIF_ID.IR : %" PRIu32, IF_ID.IR);
+    printf("\n");
+    print_instruction(IF_ID.PC);
+    printf("\n");
     printf("\nIF_ID.PC : %" PRIu32, IF_ID.PC);
-    printf("\n\nID_EX.IR : %"PRIu32, ID_EX.IR);
+    //printf("\n\nID_EX.IR : %"PRIu32, ID_EX.IR);
+    printf("\n");
+    print_instruction(ID_EX.PC);
+    printf("\n");
     printf("\nID_EX.A : %" PRIu32, ID_EX.A);
     printf("\nID_EX.B : %" PRIu32, ID_EX.B);
     printf("\nID_EX.imm : %" PRIu32, ID_EX.imm);
-    printf("\n\nEX_MEM.IR : %"PRIu32, EX_MEM.IR);
+    //printf("\n\nEX_MEM.IR : %"PRIu32, EX_MEM.IR);
+    printf("\n");
+    print_instruction(EX_MEM.PC);
+    printf("\n");
     printf("\nEM_MEM.A : %"PRIu32, EX_MEM.A);
     printf("\nEX_MEM.B : %"PRIu32, EX_MEM.B);
     printf("\nEX_MEM.ALUOutput : %"PRIu32, EX_MEM.ALUOutput);
-    printf("\n\nMEM_WB.IR : %" PRIu32, MEM_WB.IR);
+    //printf("\n\nMEM_WB.IR : %" PRIu32, MEM_WB.IR);
+    printf("\n");
+    print_instruction(MEM_WB.PC);
     printf("\nMEM_WB.ALUOutput : %" PRIu32, MEM_WB.ALUOutput);
     printf("\nMEM_WB.LMD : %" PRIu32, MEM_WB.LMD);
     printf("\n\n");
