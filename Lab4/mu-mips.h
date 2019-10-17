@@ -2,7 +2,12 @@
 
 #define FALSE 0
 #define TRUE  1
-#define ENABLE_FORWARDING 0
+
+
+int STALL_MUX = 0;
+int FORWARD_MUX1 = 0;
+int FORWARD_MUX2 = 0;
+int ENABLE_FORWARDING = 0;
 
 /******************************************************************************/
 /* MIPS memory layout                                                                                                                                      */
@@ -25,7 +30,7 @@
 
 typedef struct {
 	uint32_t begin, end;
-	uint8_t *mem;
+	uint8_t *mem;#define ENABLE_FORWARDING 0
 } mem_region_t;
 
 /* memory will be dynamically allocated at initialization */
