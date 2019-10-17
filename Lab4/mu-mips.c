@@ -235,6 +235,14 @@ void handle_command() {
         case 'p':
             print_program();
             break;
+        case 'F':
+        case 'f':
+            if (scanf("%d", &ENABLE_FORWARDING) != 1)
+                {
+                    break;
+                }
+        ENABLE_FORWARDING == 0 ? printf("Forwarding OFF\n") : printf("Forwarding ON\n");
+                    break;
         default:
             printf("Invalid Command.\n");
             break;
@@ -678,7 +686,7 @@ void EX()
 /************************************************************/
 void ID()
 {
-    /*OLA*/
+    /Forwarding is done in the ID state/
     ID_EX.IR = IF_ID.IR;
 
     uint32_t rs = ( 0x03E00000 & IF_ID.IR  ) >> 21;
@@ -905,29 +913,6 @@ void print_instruction(uint32_t addr) {
     }
 }
 
-/**************************************************************/
-/* Dectect Hazard -> Pipeline that detects data hazards, but cannot forward data                                                                               */
-/**************************************************************/
-{
-    
-    
-    
-    
-    
-    
-}
-
-/**************************************************************/
-/* Dectect Hazard -> Pipeline that detects data hazards and can forward data                                                                                 */
-/**************************************************************/
-{
-    
-    
-    
-    
-    
-    
-}
 /************************************************************/
 /* Print the current pipeline                                                                                    */
 /************************************************************/
