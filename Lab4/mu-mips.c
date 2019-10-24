@@ -3,14 +3,16 @@
 #include <string.h>
 #include <stdint.h>
 #include <assert.h>
-#include <inttypes.h>
 
 #include "mu-mips.h"
 
+int MUX_stall = 0;         //flags created for allowing forwarding
+int MUX1_forward = 0;
+int MUX2_forward = 0;
+int FORWARD_enabledFlag = 0;
+
 /***************************************************************/
 /* Print out a list of commands available                                                                  */
-void print_instruction(uint32_t addr);
-
 /***************************************************************/
 void help() {
     printf("------------------------------------------------------------------\n\n");
@@ -235,14 +237,24 @@ void handle_command() {
         case 'p':
             print_program();
             break;
+
         case 'F':
         case 'f':
-            if (scanf("%d", &ENABLE_FORWARDING) != 1)
-                {
-                    break;
-                }
-        ENABLE_FORWARDING == 0 ? printf("Forwarding OFF\n") : printf("Forwarding ON\n");
-                    break;
+            if (scanf("%d", &FORWARD_enabledFlag) != 1)
+            {
+                break;
+            }
+            //FORWARD_enabledFlag == 0 ? printf("Forwarding OFF\n") : printf("Forwarding ON\n");                   /////
+            if(FORWARD_enabledFlag == 0)
+            {
+                printf("Forwarding OFF\n");
+            }
+            else
+            {
+                printf("Forwarding ON\n");
+            }
+            break;
+
         default:
             printf("Invalid Command.\n");
             break;
@@ -265,6 +277,47 @@ void reset() {
         uint32_t region_size = MEM_REGIONS[i].end - MEM_REGIONS[i].begin + 1;
         memset(MEM_REGIONS[i].mem, 0, region_size);
     }
+
+    MUX_stall = 0;
+    MUX1_forward = 0;
+    MUX2_forward = 0;
+    FORWARD_enabledFlag = 0;
+
+    IF_EX.PC = 0;
+    IF_EX.IR = 0;
+    IF_EX.A = 0;
+    IF_EX.B = 0;
+    IF_EX.imm = 0;
+    IF_EX.ALUOutput = 0;
+    IF_EX.LMD = 0;
+    IF_EX.write = 0;
+
+    ID_IF.PC = 0;
+    ID_IF.IR = 0;
+    ID_IF.A = 0;
+    ID_IF.B = 0;
+    ID_IF.imm = 0;
+    ID_IF.ALUOutput = 0;
+    ID_IF.LMD = 0;
+    ID_IF.write = 0;
+
+    EX_MEM.PC = 0;
+    EX_MEM.IR = 0;
+    EX_MEM.A = 0;
+    EX_MEM.B = 0;
+    EX_MEM.imm = 0;
+    EX_MEM.ALUOutput = 0;
+    EX_MEM.LMD = 0;
+    EX_MEM.write = 0;
+
+    MEM_WB.PC = 0;
+    MEM_WB.IR = 0;
+    MEM_WB.A = 0;
+    MEM_WB.B = 0;
+    MEM_WB.imm = 0;
+    MEM_WB.ALUOutput = 0;
+    MEM_WB.LMD = 0;
+    MEM_WB.write = 0;
 
     /*load program*/
     load_program();
@@ -318,22 +371,6 @@ void load_program() {
 }
 
 /************************************************************/
-/*Help Extend the register from 16 bits to 32 bits                                                                                         */
-/************************************************************/
-
-uint32_t extend_sign( uint32_t im )
-{
-    uint32_t data = ( im & 0x0000FFFF );
-    uint32_t mask = 0x00008000;
-    if ( mask & data )
-    {
-        data = data | 0xFFFF0000;
-    }
-
-    return data;
-}
-
-/************************************************************/
 /* maintain the pipeline                                                                                           */
 /************************************************************/
 void handle_pipeline()
@@ -349,73 +386,522 @@ void handle_pipeline()
 }
 
 /************************************************************/
-/* writeback (WB) pipeline stage:                                                                          */
+/* Print the instruction at given memory address (in MIPS assembly format)    */
 /************************************************************/
-void WB()
-{
-    /*Zach Taylor*/
-    uint32_t rt = (0x001F0000 & MEM_WB.IR) >> 16;
-    uint32_t rd = (0x0000F800 & MEM_WB.IR) >> 11;
+void print_instruction(uint32_t addr){
+    /*IMPLEMENT THIS*/
 
-    ++INSTRUCTION_COUNT;
+    uint32_t instruction = mem_read_32(addr);
+    uint32_t specialOpCode = 0;
+    uint32_t opcode = 0, rs = 0, rt = 0, rd = 0, sa = 0;
+    uint32_t immediate = 0;
+    uint32_t base = 0;              //equals rs but we changed it because thats how it was in manuel
+    uint32_t target = 0;            //equals target but we changed it because of manuel
+    uint32_t memoryLocation = 0;
 
-    switch(MEM_WB.type)
+    if((instruction | 0x03ffffff) == 0x03ffffff)
     {
-        case (0):
-            //printf(" rd : % " PRIu32, rd);
-            NEXT_STATE.REGS[rd] = MEM_WB.ALUOutput;
-            break;
-        case 1:
-            //printf(" rt : % " PRIu32, rt);
-            NEXT_STATE.REGS[rt] = MEM_WB.ALUOutput;
-            break;
-        case 2:
-            //printf(" rt : % " PRIu32, rt);
-            NEXT_STATE.REGS[rt] = MEM_WB.LMD;
-        case 3:
-           // printf(MEM_WB.ALUOutput);
-            break;
-        case 4:
-            RUN_FLAG = FALSE;
-            break;
+        specialOpCode = instruction & 0x0000003f;
+        rs = instruction & 0x03E00000;
+        rs = rs >> 21;
+        rt = instruction & 0x001F0000;
+        rt = rt >> 16;
+        rd = instruction & 0x0000F800;
+        rd = rd >> 11;
+        sa = instruction & 0x000007C0;
+        sa = sa >> 6;
+
+        switch(specialOpCode)
+        {
+            case 0x00000020: //ADD
+                printf("ADD $%u, $%u, $%u\n",rd, rs, rt);
+                break;
+
+            case 0x00000021: //ADDU
+                printf("ADDU $%u, $%u, $%u\n",rd, rs, rt);
+                break;
+
+            case 0x00000022: //SUB
+                printf("SUB $%u, $%u, $%u\n", rd, rs, rt);
+                break;
+
+            case 0x00000023: //SUBU
+                printf("SUBU $%u, $%u, $%u\n", rd, rs, rt);
+                break;
+
+            case 0x00000018: //MULT
+                printf("MULT $%u, $%u\n", rs, rt);
+                break;
+
+            case 0x00000019: //MULTU
+                printf("MULTU $%u, $%u\n", rs, rt);
+                break;
+
+            case 0x0000001A: //DIV
+                printf("DIV $%u, $%u\n", rs, rt);
+                break;
+
+            case 0x00000001B: //DIVU
+                printf("DIVU $%u, $%u\n", rs, rt);
+                break;
+
+            case 0x00000024: //AND
+                printf("AND $%u, $%u, $%u\n", rd, rs, rt);
+                break;
+
+            case 0x00000025: //OR
+                printf("OR $%u, $%u, $%u\n", rd, rs, rt);
+                break;
+
+            case 0x00000026: //XOR
+                printf("XOR $%u, $%u, $%u\n", rd, rs, rt);
+                break;
+
+            case 0x00000027: //NOR
+                printf("NOR $%u, $%u, $%u\n", rd, rs, rt);
+                break;
+
+            case 0x0000002A: //SLT
+                printf("SLT $%u, $%u, $%u\n", rd, rs, rt);
+                break;
+
+            case 0x00000000: //SLL
+                printf("SLL $%u, $%u, %u\n", rd, rt, sa);
+                break;
+
+            case 0x00000002: //SRL
+                printf("SRL $%u, $%u, %u\n", rd, rt, sa);
+                break;
+
+            case 0x00000003: //SRA
+                printf("SRA $%u, $%u, %u\n", rd, rt, sa);
+                break;
+
+            case 0x00000010: //MFHI
+                printf("MFHI $%u\n",rd);
+                break;
+
+            case 0x00000012: //MFLO
+                printf("MFHI $%u\n",rd);
+                break;
+
+            case 0x00000011: //MTHI
+                printf("MTHI $%u\n", rs);
+                break;
+
+            case 0x00000013: //MTLO
+                printf("MTLO $%u\n", rs);
+                break;
+
+            case 0x00000008: //JR
+                printf("JR $%u\n", rs);
+                break;
+
+            case 0x00000009: //JALR
+                printf("JALR $%u\n", rs);
+                break;
+
+            case 0x0000000C:  //SYSTEMCALL
+                printf("SYSTEMCALL\n");
+                break;
+        }
+    }
+    else
+    {
+        opcode = instruction & 0xFC000000;
+        immediate = instruction & 0x0000FFFF;
+        // immediate = immediate << 16;
+        rs = instruction & 0x03E00000;
+        rs = rs >> 21;
+        rt = instruction & 0x001F0000;
+        rt = rt >> 16;
+        base = instruction & 0x03E00000;
+        base = base >> 21;
+        target = instruction & 0x03FFFFFF;
+        target = target << 2;
+
+        switch(opcode)
+        {
+            case 0x3C000000: //LUI
+                printf("LUI $%u, %u\n", rt, immediate);
+                break;
+
+            case 0x24000000: //ADDIU
+                if((immediate & 0x00008000) == 0x00008000)
+                {
+                    immediate = immediate | 0xFFFF0000;
+                }
+                else
+                {
+                    immediate = immediate & 0x0000FFFF;
+                }
+                printf("ADDIU $%u, $%u, %u\n", rt, rs, immediate);
+                break;
+
+            case 0x20000000: //ADDI
+                if((immediate & 0x00008000) == 0x00008000){
+                    immediate = immediate | 0xFFFF0000;
+                }
+                else
+                {
+                    immediate = immediate & 0x0000FFFF;
+                }
+                printf("ADDI $%u, $%u, %u\n", rt, rs, immediate);
+                break;
+
+            case 0x8C000000: //LW
+                if((immediate & 0x00008000) == 0x00008000)
+                {
+                    immediate = immediate | 0xFFFF0000;
+                }
+                else
+                {
+                    immediate = immediate & 0x0000FFFF;
+                }
+                memoryLocation = CURRENT_STATE.REGS[base] + immediate;
+                memoryLocation = memoryLocation | 0x00010000;
+                printf("LW $%u, %u(%u)\n",rt, immediate, base);
+                break;
+
+            case 0x84000000: //LH
+                if((immediate & 0x00008000) == 0x00008000)
+                {
+                    immediate = immediate | 0xFFFF0000;
+                }
+                else
+                {
+                    immediate = immediate & 0x0000FFFF;
+                }
+                memoryLocation = CURRENT_STATE.REGS[base] + immediate;
+                memoryLocation = memoryLocation | 0x00010000;
+                printf("LH $%u, %u(%u)\n",rt, immediate, base);
+                break;
+
+            case 0xAC000000: //SW
+                if((immediate & 0x00008000) == 0x00008000)
+                {
+                    immediate = immediate | 0xFFFF0000;
+                }
+                else
+                {
+                    immediate = immediate & 0x0000FFFF;
+                }
+                memoryLocation = CURRENT_STATE.REGS[base] + immediate;
+                memoryLocation = memoryLocation | 0x00010000;
+                printf("SW $%u, %u(%u)\n",rt, immediate, base);
+                break;
+
+            case 0x30000000: //ANDI
+                printf("ANDI $%u, $%u, %u\n", rt, rs, immediate);
+                break;
+
+            case 0x34000000: //ORI
+                printf("ORI $%u, $%u, %u\n", rt, rs, immediate);
+                break;
+
+            case 0x38000000: //XORI
+                printf("XORI $%u, $%u, %u\n", rt, rs, immediate);
+                break;
+
+            case 0x28000000: //SLTI
+                if((immediate & 0x00008000) == 0x00008000)
+                {
+                    immediate = immediate | 0xFFFF0000;
+                }
+                else
+                {
+                    immediate = immediate & 0x0000FFFF;
+                }
+                printf("SLTI $%u, %u, $%u\n", rt, rs, immediate);
+                break;
+
+            case 0xA4000000: //SH
+                if((immediate & 0x00008000) == 0x00008000)
+                {
+                    immediate = immediate | 0xFFFF0000;
+                }
+                else
+                {
+                    immediate = immediate & 0x0000FFFF;
+                }
+                memoryLocation = CURRENT_STATE.REGS[base] + immediate;
+                memoryLocation = memoryLocation | 0x00010000;
+                printf("SH $%u, %u(%u)\n",rt, immediate, base);
+                break;
+
+            case 0xA0000000: //SB
+                if((immediate & 0x00008000) == 0x00008000)
+                {
+                    immediate = immediate | 0xFFFF0000;
+                }
+                else
+                {
+                    immediate = immediate & 0x0000FFFF;
+                }
+                memoryLocation = CURRENT_STATE.REGS[base] + immediate;
+                memoryLocation = memoryLocation | 0x00010000;
+                printf("SB $%u, %u(%u)\n",rt, immediate, base);
+                break;
+
+            case 0x0C000000: //JAL
+                printf("JAL %x\n", target);
+                break;
+
+            case 0x08000000: //J
+                printf("J %x\n", target);
+                break;
+
+            case 0x80000000: //LB
+                if((immediate & 0x00008000) == 0x00008000)
+                {
+                    immediate = immediate | 0xFFFF0000;
+                }
+                else
+                {
+                    immediate = immediate & 0x0000FFFF;
+                }
+                memoryLocation = CURRENT_STATE.REGS[base] + immediate;
+                memoryLocation = memoryLocation | 0x00010000;
+                printf("LB $%u, %u(%u)\n",rt, immediate, base);
+                break;
+
+            case 0x10000000: //BEQ
+                if((target & 0x00008000) == 0x00008000)
+                {
+                    target = target | 0xFFFF0000;
+                }
+                else
+                {
+                    target = target & 0x0000FFFF;
+                }
+                printf("BEQ $%u, $%u, %u\n", rs, rt, target);
+                break;
+
+            case 0x14000000: //BNE
+                if((target & 0x00008000) == 0x00008000)
+                {
+                    target = target | 0xFFFF0000;
+                }
+                else
+                {
+                    target = target & 0x0000FFFF;
+                }
+                printf("BNE $%u, $%u, %u\n", rs, rt, target);
+                break;
+
+            case 0x18000000: //BLEZ
+                if((target & 0x00008000) == 0x00008000)
+                {
+                    target = target | 0xFFFF0000;
+                }
+                else
+                {
+                    target = target & 0x0000FFFF;
+                }
+                printf("BLEZ $%u, %u\n", rs, target);
+                break;
+
+            case 0x1C000000: //BGTZ
+                if((target & 0x00008000) == 0x00008000)
+                {
+                    target = target | 0xFFFF0000;
+                }
+                else
+                {
+                    target = target & 0x0000FFFF;
+                }
+                printf("BGTZ $%u, %u\n", rs, target);
+                break;
+
+            case 0x04000000: //BLTZ and BGEZ
+                if((target & 0x00008000) == 0x00008000)
+                {
+                    target = target | 0xFFFF0000;
+                }
+                else
+                {
+                    target = target & 0x0000FFFF;
+                }
+                if(rt == 0x01) //BGEZ
+                {
+                    printf("BGEZ $%u, %u\n", rs, target);
+                }
+                else //BLTZ
+                {
+                    printf("BLTZ $%u, %u\n", rs, target);
+                }
+                break;
+        }
+
     }
 
 }
 
+
 /************************************************************/
-/* memory access (MEM) pipeline stage:                           */
+/* writeback (WB) pipeline stage:                                                                          */
+/************************************************************/
+void WB()
+{
+    /*IMPLEMENT THIS*/
+
+    uint32_t opcode = 0, rt = 0, rd = 0, funct = 0;
+
+    opcode = (MEM_WB.IR & 0xFC000000) >> 26;
+    rt = (MEM_WB.IR & 0x001F0000) >> 16;
+    rd = (MEM_WB.IR & 0x0000F800) >> 11;
+    funct = MEM_WB.IR & 0x0000003F;
+
+    if(opcode == 0x00)
+    {
+        if(MEM_WB.ALUOutput == 0xa && funct == 0xC)
+        {
+            RUN_FLAG = FALSE;
+        }
+        NEXT_STATE.REGS[rd] = MEM_WB.ALUOutput;
+    }
+    else
+    {
+        switch(opcode)
+        {
+            case 0x2B: 		//SW
+                break;
+
+            case 0x29: 		//SH
+                break;
+
+            case 0x28: 		//SB
+                break;
+
+            case 0x23: 		//LW
+                NEXT_STATE.REGS[rt] = MEM_WB.LMD;
+                break;
+
+            case 0x21: 		//LH
+                NEXT_STATE.REGS[rt] = MEM_WB.LMD;
+                break;
+
+            case 0x20: 		//LB
+                NEXT_STATE.REGS[rt] = MEM_WB.LMD;
+                break;
+
+            default:   		//used for I-Type
+                NEXT_STATE.REGS[rt] = MEM_WB.ALUOutput;
+                break;
+        }
+    }
+
+    if(MEM_WB.IR != 0)
+    {
+        INSTRUCTION_COUNT++;
+    }
+}
+
+/************************************************************/
+/* memory access (MEM) pipeline stage:                                                          */
 /************************************************************/
 void MEM()
 {
-    /*Zach Taylor*/
-    MEM_WB.PC = EX_MEM.PC;
-    if( EX_MEM.IR == 0x0 )
+    /*IMPLEMENT THIS*/
+
+    uint32_t opcode = 0, funct = 0;
+
+    if(MUX_stall == 2)
+    {
+        MEM_WB.IR = 0x00;
+    }
+    else
     {
         MEM_WB.IR = EX_MEM.IR;
-        MEM_WB.ALUOutput = 0x0;
-        return;
+        MEM_WB.PC = EX_MEM.PC;
     }
 
-    MEM_WB.IR = EX_MEM.IR;
-    MEM_WB.type = EX_MEM.type;
+    opcode = (MEM_WB.IR & 0xFC000000) >> 26;
+    funct = (MEM_WB.IR & 0x0000003F);
 
-    if(EX_MEM.type <= 1)
-    {
-        MEM_WB.ALUOutput = EX_MEM.ALUOutput;
-    }
-    if(EX_MEM.type <= 2)
-    {
-        MEM_WB.LMD = mem_read_32(EX_MEM.ALUOutput);
-        MEM_WB.ALUOutput = EX_MEM.ALUOutput;
-    }
-    if(EX_MEM.type <= 3)
-    {
+    MEM_WB.ALUOutput = EX_MEM.ALUOutput;
+    MEM_WB.LMD = EX_MEM.LMD;
+    MEM_WB.write = 1;
 
-        printf("\nEX_MEM.ALUOutput : %" PRIu32, EX_MEM.ALUOutput);
-        mem_write_32(EX_MEM.ALUOutput, EX_MEM.B);
-        MEM_WB.ALUOutput = EX_MEM.ALUOutput;
-        //printf(EX_MEM.ALUOutput);
-        printf("\n");
+    if(opcode == 0x00)
+    {
+        switch(funct)
+        {
+            case 0x18: 		//MULT
+                MEM_WB.write = 0;
+                break;
+
+            case 0x19: 		//MULTU
+                MEM_WB.write = 0;
+                break;
+
+            case 0x1A: 		//DIV
+                MEM_WB.write = 0;
+                break;
+
+            case 0x1B: 		//DIVU
+                MEM_WB.write = 0;
+                break;
+
+            case 0x10: 		//MFHI
+                MEM_WB.write = 0;
+                break;
+
+            case 0x11: 		//MTHI
+                MEM_WB.write = 0;
+                break;
+
+            case 0x12: 		//MFLO
+                MEM_WB.write = 0;
+                break;
+
+            case 0x13: 		//MTLO
+                MEM_WB.write = 0;
+                break;
+
+            case 0x0C: 		//SYSCALL
+                MEM_WB.write = 0;
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    switch(opcode)
+    {
+        case 0x2B:		//SW
+            mem_write_32(EX_MEM.ALUOutput, EX_MEM.LMD);
+            MEM_WB.write = 0;
+            break;
+
+        case 0x29: 		//SH
+            mem_write_32(EX_MEM.ALUOutput & 0x0000FFFF, EX_MEM.LMD);
+            MEM_WB.write = 0;
+            break;
+
+        case 0x28: 		//SB
+            mem_write_32(EX_MEM.ALUOutput & 0x000000FF, EX_MEM.LMD);
+            MEM_WB.write = 0;
+            break;
+
+        case 0x23: 		//LW
+            MEM_WB.LMD = mem_read_32(EX_MEM.ALUOutput);
+            MEM_WB.write = 1;
+            break;
+
+        case 0x21: 		//LH
+            MEM_WB.LMD = mem_read_32(EX_MEM.ALUOutput) & 0x0000FFFF;
+            MEM_WB.write = 1;
+            break;
+
+        case 0x20: 		//LB
+            MEM_WB.LMD = mem_read_32(EX_MEM.ALUOutput) & 0x0000FFFF;
+            MEM_WB.write = 1;
+            break;
+
+        default:
+            break;
     }
 }
 
@@ -424,261 +910,239 @@ void MEM()
 /************************************************************/
 void EX()
 {
-    //if there is no intruction to be executed, just skip the rest. This prevents SLL (which has opcode 0x00) from running. V IMPORTANT
-    if( ID_EX.IR == 0x0 )
+    /*IMPLEMENT THIS*/
+
+    uint32_t opcode = 0, rt = 0, funct = 0, i = 0;
+    uint64_t product = 0;
+
+    if(MUX_stall != 0)
     {
-        EX_MEM.IR = ID_EX.IR;
-        EX_MEM.ALUOutput = 0x0;
+        EX_MEM.IR = 0x00;
         return;
     }
 
-    /*Zach Taylor*/
+    EX_MEM.IR = IF_EX.IR;
+    EX_MEM.PC = IF_EX.PC;
 
-    //Load Instruction from Buffer
-    EX_MEM.PC = ID_EX.PC;
-    EX_MEM.IR = ID_EX.IR;
-    uint32_t opcode = ( 0xFC000000 & ID_EX.IR  );
-    uint32_t imm = ID_EX.imm;
-    uint32_t func = (ID_EX.IR & 0x0000003F);
+    opcode = (EX_MEM.IR & 0xFC000000) >> 26;
+    rt = (EX_MEM.IR & 0x001F0000) >> 16;
+    funct = EX_MEM.IR & 0x0000003F;
 
-    switch(opcode)
+    EX_MEM.write = 0;
+
+    if(opcode == 0x00)
     {
-        //R-Type
-        case 0x00000000:
+        switch(funct)
         {
-            EX_MEM.type = 0;
+            case 0x18: 		//MULT
+                product = IF_EX.A * IF_EX.B;
+                NEXT_STATE.LO = (product & 0x00000000FFFFFFFF);
+                NEXT_STATE.HI = (product & 0xFFFFFFFF00000000) >> 32;
+                break;
 
-            switch (func)
-            {
-                case 0x20:
-                    puts ("ADD");
-                    EX_MEM.ALUOutput = ID_EX.A + ID_EX.B;
-                    break;
+            case 0x19:		// MULTU
+                product = IF_EX.A * IF_EX.B;
+                NEXT_STATE.LO = (product & 0x00000000FFFFFFFF);
+                NEXT_STATE.HI = (product & 0xFFFFFFFF00000000) >> 32;
+                break;
 
-                case 0x21:
-                    puts ("ADDU");
-                    EX_MEM.ALUOutput = ID_EX.A + ID_EX.B;
-                    break;
-
-                case 0x22:
-                    puts ("SUB");
-                    EX_MEM.ALUOutput = ID_EX.A - ID_EX.B;
-                    break;
-
-                case 0x23:
-                    puts ("SUBU");
-                    EX_MEM.ALUOutput = ID_EX.A - ID_EX.B;
-                    break;
-
-                case 0x18:
-                    puts ("MULT");
-                    EX_MEM.ALUOutput = ID_EX.A * ID_EX.B;
-                    break;
-
-                case 0x19:
-                    puts ("MULTU");
-                    EX_MEM.ALUOutput = ID_EX.A * ID_EX.B;
-                    break;
-
-                case 0x1A:
-                    puts ("DIV");
-                    EX_MEM.ALUOutput = ID_EX.A / ID_EX.B;
-                    break;
-
-                case 0x1B:
-                    puts ("DIVU");
-                    EX_MEM.ALUOutput = ID_EX.A / ID_EX.B;
-                    break;
-
-                case 0x24:
-                    puts ("AND");
-                    EX_MEM.ALUOutput = ID_EX.A & ID_EX.B;
-                    break;
-
-                case 0x25:
-                    puts ("OR");
-                    EX_MEM.ALUOutput = ID_EX.A | ID_EX.B;
-                    break;
-
-                case 0x26:
-                    puts ("XOR");
-                    EX_MEM.ALUOutput = ID_EX.A ^ ID_EX.B;
-                    break;
-
-                case 0x27:
-                    puts ("NOR");
-                    EX_MEM.ALUOutput = ~( ID_EX.A | ID_EX.B );
-                    break;
-
-                case 0x2A:
+            case 0x1A: 		//DIV
+                if(IF_EX.B != 0)
                 {
-                    puts ("SLT");
-                    if( ID_EX.A < ID_EX.B )
+                    NEXT_STATE.LO = IF_EX.A / IF_EX.B;
+                    NEXT_STATE.HI = IF_EX.A % IF_EX.B;
+                }
+                break;
+
+            case 0x1B:		//DIVU
+                if(IF_EX.B != 0)
+                {
+                    NEXT_STATE.LO = IF_EX.A / IF_EX.B;
+                    NEXT_STATE.HI = IF_EX.A % IF_EX.B;
+                }
+                break;
+
+            case 0x20: 		//ADD
+                EX_MEM.ALUOutput = IF_EX.A + IF_EX.B;
+                EX_MEM.write = 1;
+                break;
+
+            case 0x21: 		//ADDU
+                EX_MEM.ALUOutput = IF_EX.A + IF_EX.B;
+                EX_MEM.write = 1;
+                break;
+
+            case 0x22: 		//SUB
+                EX_MEM.ALUOutput = IF_EX.A - IF_EX.B;
+                EX_MEM.write = 1;
+                break;
+
+            case 0x23: 		//SUBU
+                EX_MEM.ALUOutput = IF_EX.A - IF_EX.B;
+                EX_MEM.write = 1;
+                break;
+
+            case 0x24: 		//AND
+                EX_MEM.ALUOutput = IF_EX.A & IF_EX.B;
+                EX_MEM.write = 1;
+                break;
+
+            case 0x25: 		//OR
+                EX_MEM.ALUOutput = IF_EX.A | IF_EX.B;
+                EX_MEM.write = 1;
+                break;
+
+            case 0x26: 		//XOR
+                EX_MEM.ALUOutput = IF_EX.A ^ IF_EX.B;
+                EX_MEM.write = 1;
+                break;
+
+            case 0x27: 		//NOR
+                EX_MEM.ALUOutput = ~(IF_EX.A | IF_EX.B);
+                EX_MEM.write = 1;
+                break;
+
+            case 0x2A: 		//SLT
+                if(IF_EX.A < IF_EX.B)
+                {
+                    EX_MEM.ALUOutput = 0x1;
+                }
+                else
+                {
+                    EX_MEM.ALUOutput = 0x0;
+                }
+                EX_MEM.write = 1;
+                break;
+
+            case 0x00: 		//SLL
+                EX_MEM.ALUOutput = IF_EX.A << IF_EX.B;
+                EX_MEM.write = 1;
+                break;
+
+            case 0x02: 		//SRL
+                EX_MEM.ALUOutput = IF_EX.A >> IF_EX.B;
+                EX_MEM.write = 1;
+                break;
+
+            case 0x03: 		//SRA
+                if((IF_EX.A & 0x80000000) == 0x80000000)
+                {
+                    for(i = 0; i < IF_EX.B; i++)
                     {
-                        EX_MEM.ALUOutput = 0x00000001;
+                        EX_MEM.ALUOutput = (IF_EX.A >> 1) | 0x80000000;
                     }
-                    else
-                    {
-                        EX_MEM.ALUOutput = 0x00000000;
-                    }
-                    break;
                 }
-                case 0x00000000:
+                else
                 {
-                    puts ("SLL");
-                    uint32_t sa = imm >> 6;
-                    EX_MEM.ALUOutput = ID_EX.B << sa;
-                    break;
+                    EX_MEM.ALUOutput = IF_EX.A >> IF_EX.B;
                 }
-                case 0x02:
-                {
-                    puts ("SRL");
-                    uint32_t sa = imm >> 6;
-                    EX_MEM.ALUOutput = ID_EX.B >> sa;
-                    break;
-                }
+                EX_MEM.write = 1;
+                break;
 
-                case 0x03:
-                {
-                    puts ("SRA");
-                    uint32_t sa = imm >> 6;
-                    EX_MEM.ALUOutput = extend_sign( ID_EX.B >> sa);
-                    break;
-                }
+            case 0x10: 		//MFHI
+                EX_MEM.ALUOutput = CURRENT_STATE.HI;
+                break;
 
-                case 0x0C: {
-                    puts("SYSCALL");
-                    EX_MEM.type = 4;
-                    break;
-                }
-                case 0x13:
-                    puts ("MTLO");
-                    EX_MEM.LO = ID_EX.A ;
-                    break;
+            case 0x11: 		//MTHI
+                CURRENT_STATE.HI = IF_EX.A;
+                break;
 
-                case 0x11:
-                    puts ("MTHI");
-                    EX_MEM.HI = ID_EX.A ;
-                    break;
+            case 0x12: 		//MFLO
+                EX_MEM.ALUOutput = CURRENT_STATE.LO;
+                break;
 
-                case 0x12:
-                    puts ("MFLO");
-                    EX_MEM.ALUOutput = EX_MEM.LO ;
-                    break;
+            case 0x13: 		//MTLO
+                CURRENT_STATE.LO = IF_EX.A;
+                break;
 
-                case 0x10:
-                    puts ("MFHI");
-                    EX_MEM.ALUOutput =  EX_MEM.HI;
-                    break;
-
-            }
-            break;
-
-        }
-        default:
-        {
-            switch( opcode )
-            {
-                case 0x20000000:
-                    //don't remove 0's to the RIGHT of numbers, because they change the value. 0's to the left can be removed as desired.
-                    puts ("ADDI");
-                    EX_MEM.ALUOutput = ID_EX.imm + ID_EX.A;
-                    EX_MEM.type = 1;
-                    break;
-
-                case 0x24000000:
-                    puts ("ADDIU");
-                    EX_MEM.ALUOutput = ID_EX.imm + ID_EX.A;
-                    EX_MEM.type = 1;
-                    break;
-
-                case 0x30000000:
-                    puts ("ANDI");
-                    EX_MEM.ALUOutput = ( ID_EX.imm & 0x0000FFFF ) & ID_EX.A;
-                    EX_MEM.type = 1;
-                    break;
-
-                case 0x3C000000:
-                    puts ("LUI");
-                    EX_MEM.ALUOutput = ID_EX.imm << 16;
-                    EX_MEM.type = 1;
-                    break;
-
-                case 0x38000000:
-                    puts ("XORI");
-                    EX_MEM.ALUOutput = ( ID_EX.imm & 0x0000FFFF ) ^ ID_EX.A;
-                    EX_MEM.type = 1;
-                    break;
-
-                case 0x34000000:
-                    puts ("ORI");
-                    EX_MEM.ALUOutput = ( ID_EX.imm & 0x0000FFFF ) | ID_EX.A;
-                    EX_MEM.type = 1;
-                    break;
-
-                case 0xA0000000:
-                {
-                    puts ("SB");
-                    uint32_t eAddr = ID_EX.A + ID_EX.imm;
-                    EX_MEM.ALUOutput = eAddr;
-                    EX_MEM.B = ID_EX.B;
-                    EX_MEM.type = 3;
-                    break;
-                }
-
-                case 0xAC000000:
-                {
-                    puts ("SW");
-                    uint32_t eAddr = ID_EX.A + ID_EX.imm;
-                    EX_MEM.ALUOutput = eAddr;
-                    EX_MEM.B = ID_EX.B;
-                    EX_MEM.type = 3;
-                    break;
-                }
-
-                case 0xA4000000:
-                {
-                    puts ("SH");
-                    uint32_t eAddr = ID_EX.A + ID_EX.imm;
-                    EX_MEM.ALUOutput = eAddr;
-                    EX_MEM.B = ID_EX.B;
-                    EX_MEM.type = 3;
-                    break;
-                }
-
-                case 0x8C000000:
-                {
-                    puts ("LB");
-                    uint32_t eAddr = ID_EX.A + ID_EX.imm;
-                    EX_MEM.ALUOutput = eAddr;
-                    EX_MEM.B = ID_EX.B;
-                    EX_MEM.type = 2;
-                    break;
-                }
-
-                case 0x80000000:
-                {
-                    puts ("LW");
-                    uint32_t eAddr = ID_EX.A + ID_EX.imm;
-                    EX_MEM.ALUOutput = eAddr;
-                    EX_MEM.B = ID_EX.B;
-                    EX_MEM.type = 2;
-                    break;
-                }
-
-                case 0x84000000:
-                {
-                    puts ("LH");
-                    uint32_t eAddr = ID_EX.A + ID_EX.imm;
-                    EX_MEM.ALUOutput = eAddr;
-                    EX_MEM.B = ID_EX.B;
-                    EX_MEM.type = 2;
-                    break;
-                }
-            }
+            case 0x0C: 		//SYSCALL
+                EX_MEM.ALUOutput = 0xA;
+                break;
         }
     }
+    else
+    {
+        switch(opcode)
+        {
+            case 0x08: 		//ADDI
+                EX_MEM.ALUOutput = IF_EX.A + IF_EX.imm;
+                EX_MEM.write = 1;
+                break;
 
+            case 0x09: 		//ADDIU
+                EX_MEM.ALUOutput = IF_EX.A + IF_EX.imm;
+                EX_MEM.write = 1;
+                break;
+
+            case 0x0A: 		//SLTI
+                if(IF_EX.A - IF_EX.imm < 0)
+                {
+                    EX_MEM.ALUOutput = 0x1;
+                }
+                else
+                {
+                    EX_MEM.ALUOutput = 0x0;
+                }
+                EX_MEM.write = 1;
+                break;
+
+            case 0x0C: 		//ANDI
+                EX_MEM.ALUOutput = IF_EX.A & IF_EX.imm;
+                EX_MEM.write = 1;
+                break;
+
+            case 0x0D: 		//ORI
+                EX_MEM.ALUOutput = IF_EX.A | IF_EX.imm;
+                EX_MEM.write = 1;
+                break;
+
+            case 0x0E: 		//XORI
+                EX_MEM.ALUOutput = IF_EX.A ^ IF_EX.imm;
+                EX_MEM.write = 1;
+                break;
+
+            case 0x0F: 		//LUI
+                EX_MEM.ALUOutput = IF_EX.imm << 16;
+                EX_MEM.write = 1;
+                break;
+
+            case 0x20: 		//LB
+                EX_MEM.ALUOutput = IF_EX.A + IF_EX.imm;
+                EX_MEM.LMD = IF_EX.B;
+                EX_MEM.write = 1;
+                break;
+
+            case 0x21: 		//LH
+                EX_MEM.ALUOutput = IF_EX.A + IF_EX.imm;
+                EX_MEM.LMD = IF_EX.B;
+                EX_MEM.write = 1;
+                break;
+
+            case 0x23: 		//LW
+                EX_MEM.ALUOutput = IF_EX.A + IF_EX.imm;
+                EX_MEM.write = 1;
+                EX_MEM.LMD = IF_EX.B;
+                break;
+
+            case 0x28: 		//SB
+                EX_MEM.ALUOutput = IF_EX.A + IF_EX.imm;
+                EX_MEM.LMD = IF_EX.B;
+                break;
+
+            case 0x29: 		//SH
+                EX_MEM.ALUOutput = IF_EX.A + IF_EX.imm;
+                EX_MEM.LMD = IF_EX.B;
+                break;
+
+            case 0x2B: 		//SW
+                EX_MEM.ALUOutput = IF_EX.A + IF_EX.imm;
+                EX_MEM.LMD = IF_EX.B;
+                break;
+
+            default:
+                break;
+        }
+    }
 }
 
 /************************************************************/
@@ -686,22 +1150,247 @@ void EX()
 /************************************************************/
 void ID()
 {
-    /Forwarding is done in the ID state/
-    ID_EX.IR = IF_ID.IR;
+    /*IMPLEMENT THIS*/
 
-    uint32_t rs = ( 0x03E00000 & IF_ID.IR  ) >> 21;
-    uint32_t rt = ( 0x001F0000 & IF_ID.IR  ) >> 16;
-    uint32_t imm = ( 0x0000FFFF & IF_ID.IR  );
+    uint32_t opcode = 0, rs = 0, rt = 0, sa = 0, funct = 0, immediate = 0, EX_RD = 0, MEM_RD = 0, temp = 0, temp2 = 0;
 
-    //Load data in ID->EX Buffer
+    if (MUX_stall == 0)
+    {
+        IF_EX.IR = ID_IF.IR;
+    }
+    MUX_stall = 0;
 
-    ID_EX.PC = IF_ID.PC;
-    ID_EX.A = CURRENT_STATE.REGS[rs];
-    ID_EX.B = CURRENT_STATE.REGS[rt];
-    ID_EX.imm = extend_sign( imm );
-    ID_EX.LO = CURRENT_STATE.LO;
-    ID_EX.HI = CURRENT_STATE.HI;
+    opcode = (IF_EX.IR & 0xFC000000) >> 26;
+    rs = (IF_EX.IR & 0x03E00000) >> 21;
+    rt = (IF_EX.IR & 0x001F0000) >> 16;
+    sa = (IF_EX.IR & 0x000007C0) >> 6;
+    funct = IF_EX.IR & 0x0000003F;
+    immediate = IF_EX.IR & 0x0000FFFF;
 
+    switch((EX_MEM.IR & 0xFC000000) >> 26)
+    {
+        case 0x08:
+            EX_RD = (EX_MEM.IR & 0x001F0000) >> 16;
+            break;
+
+        case 0x09:
+            EX_RD = (EX_MEM.IR & 0x001F0000) >> 16;
+            break;
+
+        case 0x0A:
+            EX_RD = (EX_MEM.IR & 0x001F0000) >> 16;
+            break;
+
+        case 0x0C:
+            EX_RD = (EX_MEM.IR & 0x001F0000) >> 16;
+            break;
+
+        case 0x0D:
+            EX_RD = (EX_MEM.IR & 0x001F0000) >> 16;
+            break;
+
+        case 0x0E:
+            EX_RD = (EX_MEM.IR & 0x001F0000) >> 16;
+            break;
+
+        case 0x0F:
+            EX_RD = (EX_MEM.IR & 0x001F0000) >> 16;
+            break;
+
+        case 0x20:
+            EX_RD = (EX_MEM.IR & 0x001F0000) >> 16;
+            break;
+
+        case 0x21:
+            EX_RD = (EX_MEM.IR & 0x001F0000) >> 16;
+            break;
+
+        case 0x23:
+            EX_RD = (EX_MEM.IR & 0x001F0000) >> 16;
+            break;
+
+        default:
+            EX_RD = (EX_MEM.IR & 0x0000F800) >> 11;
+            break;
+    }
+
+    switch((MEM_WB.IR & 0xFC000000) >> 26)
+    {
+        case 0x08:
+            MEM_RD = (MEM_WB.IR & 0x001F0000) >> 16;
+            break;
+
+        case 0x09:
+            MEM_RD = (MEM_WB.IR & 0x001F0000) >> 16;
+            break;
+
+        case 0x0A:
+            MEM_RD = (MEM_WB.IR & 0x001F0000) >> 16;
+            break;
+
+        case 0x0C:
+            MEM_RD = (MEM_WB.IR & 0x001F0000) >> 16;
+            break;
+
+        case 0x0D:
+            MEM_RD = (MEM_WB.IR & 0x001F0000) >> 16;
+            break;
+
+        case 0x0E:
+            MEM_RD = (MEM_WB.IR & 0x001F0000) >> 16;
+            break;
+
+        case 0x0F:
+            MEM_RD = (MEM_WB.IR & 0x001F0000) >> 16;
+            break;
+
+        case 0x20:
+            MEM_RD = (MEM_WB.IR & 0x001F0000) >> 16;
+            break;
+
+        case 0x21:
+            MEM_RD = (MEM_WB.IR & 0x001F0000) >> 16;
+            break;
+
+        case 0x23:
+            MEM_RD = (MEM_WB.IR & 0x001F0000) >> 16;
+            break;
+
+        default:
+            MEM_RD = (MEM_WB.IR & 0x0000F800) >> 11;
+            break;
+    }
+
+    if(FORWARD_enabledFlag)
+    {
+        if((EX_MEM.write == 1) && (EX_RD != 0x0) && (EX_RD == rs))
+        {
+            MUX1_forward = 2;
+            temp = (EX_MEM.IR & 0xFC000000) >> 26;
+
+            if((temp == 0x20) || (temp == 0x21) || (temp == 0x23))
+            {
+                MUX_stall = 1;
+            }
+        }
+        else if((EX_MEM.write == 1) && (EX_RD != 0x0) && (EX_RD == rt))
+        {
+            MUX2_forward = 2;
+            temp = (EX_MEM.IR & 0xFC000000) >> 26;
+
+            if((temp == 0x20) || (temp == 0x21) || (temp == 0x23))
+            {
+                MUX_stall = 1;
+            }
+        }
+
+        if((MEM_RD == rs) && (EX_RD == 0) && (MEM_WB.write == 1) && (MEM_RD != 0) && (((EX_MEM.write == 1) && (EX_RD != 0)) == 0))
+        {
+            MUX1_forward = 1;
+        }
+        else if((MEM_RD == rt) && (EX_RD == 0) && (MEM_WB.write == 1) && (MEM_RD != 0) && (((EX_MEM.write == 1) && (EX_RD != 0)) == 0))
+        {
+            MUX2_forward = 1;
+        }
+    }
+    else
+    {
+        if ((EX_MEM.write == 1) && (EX_RD != 0) && ((EX_RD == rs) || (EX_RD == rt)))
+        {
+            MUX_stall = 1;
+        }
+        if ((MEM_WB.write == 1) && (MEM_RD != 0) && ((MEM_RD == rs) || (MEM_RD == rt)))
+        {
+            MUX_stall = 2;
+        }
+    }
+
+    if(opcode == 0x00)
+    {
+        switch(funct)
+        {
+            case 0x00: 		//SLL
+                IF_EX.A = NEXT_STATE.REGS[rs];
+                IF_EX.B = NEXT_STATE.REGS[sa];
+                IF_EX.imm = 0;
+                break;
+
+            case 0x02: 		//SRL
+                IF_EX.A = NEXT_STATE.REGS[rs];
+                IF_EX.B = NEXT_STATE.REGS[sa];
+                IF_EX.imm = 0;
+                break;
+
+            case 0x03: 		//SRA
+                IF_EX.A = NEXT_STATE.REGS[rs];
+                IF_EX.B = NEXT_STATE.REGS[sa];
+                IF_EX.imm = 0;
+                break;
+
+            default:
+                IF_EX.A = NEXT_STATE.REGS[rs];
+                IF_EX.B = NEXT_STATE.REGS[rt];
+                IF_EX.imm = 0;
+                break;
+        }
+    }
+    else
+    {
+        IF_EX.A = NEXT_STATE.REGS[rs];
+        IF_EX.B = NEXT_STATE.REGS[rt];
+        IF_EX.imm = immediate;
+    }
+
+    if((IF_EX.imm & 0x00008000) == 0x00008000)
+    {
+        IF_EX.imm = IF_EX.imm | 0xFFFF0000;
+    }
+    else
+    {
+        IF_EX.imm = IF_EX.imm & 0x0000FFFF;
+    }
+
+    if(FORWARD_enabledFlag == 1)
+    {
+        if(MUX1_forward == 1)
+        {
+            temp2 = (MEM_WB.IR & 0xFC000000) >> 26;
+
+            if((temp2 == 0x20) || (temp2 == 0x21) || (temp2 == 0x23))
+            {
+                IF_EX.A = MEM_WB.LMD;
+            }
+            else
+            {
+                IF_EX.A = MEM_WB.ALUOutput;
+            }
+        }
+        else if(MUX2_forward == 1)
+        {
+            temp2 = (MEM_WB.IR & 0xFC000000) >> 26;
+
+            if((temp2 == 0x20) || (temp2 == 0x21) || (temp2 == 0x23))
+            {
+                IF_EX.B = MEM_WB.LMD;
+            }
+            else
+            {
+                IF_EX.B = MEM_WB.ALUOutput;
+            }
+        }
+
+        if(MUX1_forward == 2)
+        {
+            IF_EX.A = EX_MEM.ALUOutput;
+        }
+        else if(MUX2_forward == 2)
+        {
+            IF_EX.B = EX_MEM.ALUOutput;
+        }
+
+        MUX1_forward = 0x00;
+        MUX2_forward = 0x00;
+    }
 }
 
 /************************************************************/
@@ -709,207 +1398,47 @@ void ID()
 /************************************************************/
 void IF()
 {
-    /*Ola*/
-    uint32_t instruction = mem_read_32( CURRENT_STATE.PC );
+    /*IMPLEMENT THIS*/
 
-    IF_ID.IR = instruction;
-    NEXT_STATE.PC = CURRENT_STATE.PC + 0x4;
-    IF_ID.PC = NEXT_STATE.PC;
+    if(MUX_stall == 0)
+    {
+        ID_IF.IR = mem_read_32(CURRENT_STATE.PC);
+        ID_IF.PC = CURRENT_STATE.PC + 4;
+        NEXT_STATE.PC = ID_IF.PC;
+    }
+    else
+    {
+        printf(" STALL \n");
+    }
 }
 
 
 /************************************************************/
 /* Initialize Memory                                                                                                    */
 /************************************************************/
-void initialize(){
+void initialize() {
     init_memory();
     CURRENT_STATE.PC = MEM_TEXT_BEGIN;
     NEXT_STATE = CURRENT_STATE;
     RUN_FLAG = TRUE;
 }
-void print_program(){
-    int i;
-    uint32_t addr;
 
-    for(i=0; i<PROGRAM_SIZE; i++){
-        addr = MEM_TEXT_BEGIN + (i*4);
-        printf("[0x%x]\t", addr);
-        print_instruction(addr);
-    }
-}
-
-void print_instruction(uint32_t addr) {
 
 /************************************************************/
 /* Print the program loaded into memory (in MIPS assembly format)    */
 /************************************************************/
-    uint32_t instruction, opcode, function, rs, rt, rd, sa, immediate, target;
+void print_program(){
+    /*IMPLEMENT THIS*/
 
-    instruction = mem_read_32(addr);
+    uint32_t address = 0;
+    int i = 0;
 
-    opcode = (instruction & 0xFC000000) >> 26;
-    function = instruction & 0x0000003F;
-    rs = (instruction & 0x03E00000) >> 21;
-    rt = (instruction & 0x001F0000) >> 16;
-    rd = (instruction & 0x0000F800) >> 11;
-    sa = (instruction & 0x000007C0) >> 6;
-    immediate = instruction & 0x0000FFFF;
-    target = instruction & 0x03FFFFFF;
-
-    if(opcode == 0x00){
-        /*R format instructions here*/
-
-        switch(function){
-            case 0x00:
-                printf("SLL $r%u, $r%u, 0x%x\n", rd, rt, sa);
-                break;
-            case 0x02:
-                printf("SRL $r%u, $r%u, 0x%x\n", rd, rt, sa);
-                break;
-            case 0x03:
-                printf("SRA $r%u, $r%u, 0x%x\n", rd, rt, sa);
-                break;
-            case 0x08:
-                printf("JR $r%u\n", rs);
-                break;
-            case 0x09:
-                if(rd == 31){
-                    printf("JALR $r%u\n", rs);
-                }
-                else{
-                    printf("JALR $r%u, $r%u\n", rd, rs);
-                }
-                break;
-            case 0x0C:
-                printf("SYSCALL\n");
-                break;
-            case 0x10:
-                printf("MFHI $r%u\n", rd);
-                break;
-            case 0x11:
-                printf("MTHI $r%u\n", rs);
-                break;
-            case 0x12:
-                printf("MFLO $r%u\n", rd);
-                break;
-            case 0x13:
-                printf("MTLO $r%u\n", rs);
-                break;
-            case 0x18:
-                printf("MULT $r%u, $r%u\n", rs, rt);
-                break;
-            case 0x19:
-                printf("MULTU $r%u, $r%u\n", rs, rt);
-                break;
-            case 0x1A:
-                printf("DIV $r%u, $r%u\n", rs, rt);
-                break;
-            case 0x1B:
-                printf("DIVU $r%u, $r%u\n", rs, rt);
-                break;
-            case 0x20:
-                printf("ADD $r%u, $r%u, $r%u\n", rd, rs, rt);
-                break;
-            case 0x21:
-                printf("ADDU $r%u, $r%u, $r%u\n", rd, rs, rt);
-                break;
-            case 0x22:
-                printf("SUB $r%u, $r%u, $r%u\n", rd, rs, rt);
-                break;
-            case 0x23:
-                printf("SUBU $r%u, $r%u, $r%u\n", rd, rs, rt);
-                break;
-            case 0x24:
-                printf("AND $r%u, $r%u, $r%u\n", rd, rs, rt);
-                break;
-            case 0x25:
-                printf("OR $r%u, $r%u, $r%u\n", rd, rs, rt);
-                break;
-            case 0x26:
-                printf("XOR $r%u, $r%u, $r%u\n", rd, rs, rt);
-                break;
-            case 0x27:
-                printf("NOR $r%u, $r%u, $r%u\n", rd, rs, rt);
-                break;
-            case 0x2A:
-                printf("SLT $r%u, $r%u, $r%u\n", rd, rs, rt);
-                break;
-            default:
-                printf("Instruction is not implemented!\n");
-                break;
-        }
-    }
-    else{
-        switch(opcode){
-            case 0x01:
-                if(rt == 0){
-                    printf("BLTZ $r%u, 0x%x\n", rs, immediate<<2);
-                }
-                else if(rt == 1){
-                    printf("BGEZ $r%u, 0x%x\n", rs, immediate<<2);
-                }
-                break;
-            case 0x02:
-                printf("J 0x%x\n", (addr & 0xF0000000) | (target<<2));
-                break;
-            case 0x03:
-                printf("JAL 0x%x\n", (addr & 0xF0000000) | (target<<2));
-                break;
-            case 0x04:
-                printf("BEQ $r%u, $r%u, 0x%x\n", rs, rt, immediate<<2);
-                break;
-            case 0x05:
-                printf("BNE $r%u, $r%u, 0x%x\n", rs, rt, immediate<<2);
-                break;
-            case 0x06:
-                printf("BLEZ $r%u, 0x%x\n", rs, immediate<<2);
-                break;
-            case 0x07:
-                printf("BGTZ $r%u, 0x%x\n", rs, immediate<<2);
-                break;
-            case 0x08:
-                printf("ADDI $r%u, $r%u, 0x%x\n", rt, rs, immediate);
-                break;
-            case 0x09:
-                printf("ADDIU $r%u, $r%u, 0x%x\n", rt, rs, immediate);
-                break;
-            case 0x0A:
-                printf("SLTI $r%u, $r%u, 0x%x\n", rt, rs, immediate);
-                break;
-            case 0x0C:
-                printf("ANDI $r%u, $r%u, 0x%x\n", rt, rs, immediate);
-                break;
-            case 0x0D:
-                printf("ORI $r%u, $r%u, 0x%x\n", rt, rs, immediate);
-                break;
-            case 0x0E:
-                printf("XORI $r%u, $r%u, 0x%x\n", rt, rs, immediate);
-                break;
-            case 0x0F:
-                printf("LUI $r%u, 0x%x\n", rt, immediate);
-                break;
-            case 0x20:
-                printf("LB $r%u, 0x%x($r%u)\n", rt, immediate, rs);
-                break;
-            case 0x21:
-                printf("LH $r%u, 0x%x($r%u)\n", rt, immediate, rs);
-                break;
-            case 0x23:
-                printf("LW $r%u, 0x%x($r%u)\n", rt, immediate, rs);
-                break;
-            case 0x28:
-                printf("SB $r%u, 0x%x($r%u)\n", rt, immediate, rs);
-                break;
-            case 0x29:
-                printf("SH $r%u, 0x%x($r%u)\n", rt, immediate, rs);
-                break;
-            case 0x2B:
-                printf("SW $r%u, 0x%x($r%u)\n", rt, immediate, rs);
-                break;
-            default:
-                printf("Instruction is not implemented!\n");
-                break;
-        }
+    while(i<PROGRAM_SIZE)
+    {
+        address = MEM_TEXT_BEGIN + (i*4);
+        printf("[0x%08x]\t", address);
+        print_instruction(address);
+        i++;
     }
 }
 
@@ -917,41 +1446,28 @@ void print_instruction(uint32_t addr) {
 /* Print the current pipeline                                                                                    */
 /************************************************************/
 void show_pipeline(){
-    /*Mostly OLA*/
-    printf("Current PC: %" PRIu32, CURRENT_STATE.PC);
-    //printf("\nIF_ID.IR : %" PRIu32, IF_ID.IR);
-    printf("\n");
-    print_instruction(IF_ID.PC);
-    printf("\n");
-    printf("\nIF_ID.PC : %" PRIu32, IF_ID.PC);
-    //printf("\n\nID_EX.IR : %"PRIu32, ID_EX.IR);
-    printf("\n");
-    print_instruction(ID_EX.PC);
-    printf("\n");
-    printf("\nID_EX.A : %" PRIu32, ID_EX.A);
-    printf("\nID_EX.B : %" PRIu32, ID_EX.B);
-    printf("\nID_EX.imm : %" PRIu32, ID_EX.imm);
-    //printf("\n\nEX_MEM.IR : %"PRIu32, EX_MEM.IR);
-    printf("\n");
-    print_instruction(EX_MEM.PC);
-    printf("\n");
-    printf("\nEM_MEM.A : %"PRIu32, EX_MEM.A);
-    printf("\nEX_MEM.B : %"PRIu32, EX_MEM.B);
-    printf("\nEX_MEM.ALUOutput : %"PRIu32, EX_MEM.ALUOutput);
-    //printf("\n\nMEM_WB.IR : %" PRIu32, MEM_WB.IR);
-    printf("\n");
-    print_instruction(MEM_WB.PC);
-    printf("\nMEM_WB.ALUOutput : %" PRIu32, MEM_WB.ALUOutput);
-    printf("\nMEM_WB.LMD : %" PRIu32, MEM_WB.LMD);
-    printf("\n\n");
+    /*IMPLEMENT THIS*/
 
+    printf("\nCurrent PC:   %x\n", CURRENT_STATE.PC);
+    printf("IF/ID.IR      %x\n", ID_IF.IR);
+    printf("IF/ID.PC      %x\n\n", ID_IF.PC);
+    printf("ID/EX.IR      %x\n", IF_EX.IR);
+    printf("ID/EX.A       %x\n", IF_EX.A);
+    printf("ID/EX.B       %x\n", IF_EX.B);
+    printf("ID/EX.imm     %x\n\n", IF_EX.imm);
+    printf("EX/MEM.IR     %x\n", EX_MEM.IR);
+    printf("EX/MEM.A     %x\n", EX_MEM.A);
+    printf("EX/MEM.B     %x\n", EX_MEM.B);
+    printf("EX/MEM.ALUOutput %x\n\n", EX_MEM.ALUOutput);
+    printf("MEM/WB.IR     %x\n", MEM_WB.IR);
+    printf("MEM/WB.ALUOutput %x\n", MEM_WB.ALUOutput);
+    printf("MEM/WB.LMD    %x\n\n", MEM_WB.LMD);
 }
 
 /***************************************************************/
 /* main                                                                                                                                   */
 /***************************************************************/
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     printf("\n**************************\n");
     printf("Welcome to MU-MIPS SIM...\n");
     printf("**************************\n\n");
