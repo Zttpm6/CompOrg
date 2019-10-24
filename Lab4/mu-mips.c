@@ -282,24 +282,26 @@ void reset() {
     MUX1_forward = 0;
     MUX2_forward = 0;
     FORWARD_enabledFlag = 0;
+    
+    //This is giving an error because IF_EX is not defined, i believe this is supposed to be IF_ID   
+    IF_ID.PC = 0;
+    IF_ID.IR = 0;
+    IF_ID.A = 0;
+    IF_ID.B = 0;
+    IF_ID.imm = 0;
+    IF_ID.ALUOutput = 0;
+    IF_ID.LMD = 0;
+    IF_ID.write = 0;
 
-    IF_EX.PC = 0;
-    IF_EX.IR = 0;
-    IF_EX.A = 0;
-    IF_EX.B = 0;
-    IF_EX.imm = 0;
-    IF_EX.ALUOutput = 0;
-    IF_EX.LMD = 0;
-    IF_EX.write = 0;
-
-    ID_IF.PC = 0;
-    ID_IF.IR = 0;
-    ID_IF.A = 0;
-    ID_IF.B = 0;
-    ID_IF.imm = 0;
-    ID_IF.ALUOutput = 0;
-    ID_IF.LMD = 0;
-    ID_IF.write = 0;
+    //same issue here ( ID_IF instead of ID_EX)
+    ID_EX.PC = 0;
+    ID_EX.IR = 0;
+    ID_EX.A = 0;
+    ID_EX.B = 0;
+    ID_EX.imm = 0;
+    ID_EX.ALUOutput = 0;
+    ID_EX.LMD = 0;
+    ID_EX.write = 0;
 
     EX_MEM.PC = 0;
     EX_MEM.IR = 0;
@@ -921,8 +923,8 @@ void EX()
         return;
     }
 
-    EX_MEM.IR = IF_EX.IR;
-    EX_MEM.PC = IF_EX.PC;
+    EX_MEM.IR = ID_EX.IR;
+    EX_MEM.PC = ID_EX.PC;
 
     opcode = (EX_MEM.IR & 0xFC000000) >> 26;
     rt = (EX_MEM.IR & 0x001F0000) >> 16;
@@ -935,75 +937,75 @@ void EX()
         switch(funct)
         {
             case 0x18: 		//MULT
-                product = IF_EX.A * IF_EX.B;
+                product = ID_EX.A * ID_EX.B;
                 NEXT_STATE.LO = (product & 0x00000000FFFFFFFF);
                 NEXT_STATE.HI = (product & 0xFFFFFFFF00000000) >> 32;
                 break;
 
             case 0x19:		// MULTU
-                product = IF_EX.A * IF_EX.B;
+                product = ID_EX.A * ID_EX.B;
                 NEXT_STATE.LO = (product & 0x00000000FFFFFFFF);
                 NEXT_STATE.HI = (product & 0xFFFFFFFF00000000) >> 32;
                 break;
 
             case 0x1A: 		//DIV
-                if(IF_EX.B != 0)
+                if(ID_EX.B != 0)
                 {
-                    NEXT_STATE.LO = IF_EX.A / IF_EX.B;
-                    NEXT_STATE.HI = IF_EX.A % IF_EX.B;
+                    NEXT_STATE.LO = ID_EX.A / ID_EX.B;
+                    NEXT_STATE.HI = ID_EX.A % ID_EX.B;
                 }
                 break;
 
             case 0x1B:		//DIVU
-                if(IF_EX.B != 0)
+                if(ID_EX.B != 0)
                 {
-                    NEXT_STATE.LO = IF_EX.A / IF_EX.B;
-                    NEXT_STATE.HI = IF_EX.A % IF_EX.B;
+                    NEXT_STATE.LO = ID_EX.A / ID_EX.B;
+                    NEXT_STATE.HI = ID_EX.A % ID_EX.B;
                 }
                 break;
 
             case 0x20: 		//ADD
-                EX_MEM.ALUOutput = IF_EX.A + IF_EX.B;
+                EX_MEM.ALUOutput = ID_EX.A + ID_EX.B;
                 EX_MEM.write = 1;
                 break;
 
             case 0x21: 		//ADDU
-                EX_MEM.ALUOutput = IF_EX.A + IF_EX.B;
+                EX_MEM.ALUOutput = ID_EX.A + ID_EX.B;
                 EX_MEM.write = 1;
                 break;
 
             case 0x22: 		//SUB
-                EX_MEM.ALUOutput = IF_EX.A - IF_EX.B;
+                EX_MEM.ALUOutput = ID_EX.A - ID_EX.B;
                 EX_MEM.write = 1;
                 break;
 
             case 0x23: 		//SUBU
-                EX_MEM.ALUOutput = IF_EX.A - IF_EX.B;
+                EX_MEM.ALUOutput = ID_EX.A - ID_EX.B;
                 EX_MEM.write = 1;
                 break;
 
             case 0x24: 		//AND
-                EX_MEM.ALUOutput = IF_EX.A & IF_EX.B;
+                EX_MEM.ALUOutput = ID_EX.A & ID_EX.B;
                 EX_MEM.write = 1;
                 break;
 
             case 0x25: 		//OR
-                EX_MEM.ALUOutput = IF_EX.A | IF_EX.B;
+                EX_MEM.ALUOutput = ID_EX.A | ID_EX.B;
                 EX_MEM.write = 1;
                 break;
 
             case 0x26: 		//XOR
-                EX_MEM.ALUOutput = IF_EX.A ^ IF_EX.B;
+                EX_MEM.ALUOutput = ID_EX.A ^ ID_EX.B;
                 EX_MEM.write = 1;
                 break;
 
             case 0x27: 		//NOR
-                EX_MEM.ALUOutput = ~(IF_EX.A | IF_EX.B);
+                EX_MEM.ALUOutput = ~(ID_EX.A | ID_EX.B);
                 EX_MEM.write = 1;
                 break;
 
             case 0x2A: 		//SLT
-                if(IF_EX.A < IF_EX.B)
+                if(ID_EX.A < ID_EX.B)
                 {
                     EX_MEM.ALUOutput = 0x1;
                 }
@@ -1015,26 +1017,26 @@ void EX()
                 break;
 
             case 0x00: 		//SLL
-                EX_MEM.ALUOutput = IF_EX.A << IF_EX.B;
+                EX_MEM.ALUOutput = ID_EX.A << ID_EX.B;
                 EX_MEM.write = 1;
                 break;
 
             case 0x02: 		//SRL
-                EX_MEM.ALUOutput = IF_EX.A >> IF_EX.B;
+                EX_MEM.ALUOutput = ID_EX.A >> ID_EX.B;
                 EX_MEM.write = 1;
                 break;
 
             case 0x03: 		//SRA
-                if((IF_EX.A & 0x80000000) == 0x80000000)
+                if((ID_EX.A & 0x80000000) == 0x80000000)
                 {
-                    for(i = 0; i < IF_EX.B; i++)
+                    for(i = 0; i < ID_EX.B; i++)
                     {
-                        EX_MEM.ALUOutput = (IF_EX.A >> 1) | 0x80000000;
+                        EX_MEM.ALUOutput = (ID_EX.A >> 1) | 0x80000000;
                     }
                 }
                 else
                 {
-                    EX_MEM.ALUOutput = IF_EX.A >> IF_EX.B;
+                    EX_MEM.ALUOutput = ID_EX.A >> ID_EX.B;
                 }
                 EX_MEM.write = 1;
                 break;
@@ -1044,7 +1046,7 @@ void EX()
                 break;
 
             case 0x11: 		//MTHI
-                CURRENT_STATE.HI = IF_EX.A;
+                CURRENT_STATE.HI = ID_EX.A;
                 break;
 
             case 0x12: 		//MFLO
@@ -1052,7 +1054,7 @@ void EX()
                 break;
 
             case 0x13: 		//MTLO
-                CURRENT_STATE.LO = IF_EX.A;
+                CURRENT_STATE.LO = ID_EX.A;
                 break;
 
             case 0x0C: 		//SYSCALL
@@ -1065,17 +1067,17 @@ void EX()
         switch(opcode)
         {
             case 0x08: 		//ADDI
-                EX_MEM.ALUOutput = IF_EX.A + IF_EX.imm;
+                EX_MEM.ALUOutput = ID_EX.A + ID_EX.imm;
                 EX_MEM.write = 1;
                 break;
 
             case 0x09: 		//ADDIU
-                EX_MEM.ALUOutput = IF_EX.A + IF_EX.imm;
+                EX_MEM.ALUOutput = ID_EX.A + ID_EX.imm;
                 EX_MEM.write = 1;
                 break;
 
             case 0x0A: 		//SLTI
-                if(IF_EX.A - IF_EX.imm < 0)
+                if(ID_EX.A - ID_EX.imm < 0)
                 {
                     EX_MEM.ALUOutput = 0x1;
                 }
@@ -1087,56 +1089,56 @@ void EX()
                 break;
 
             case 0x0C: 		//ANDI
-                EX_MEM.ALUOutput = IF_EX.A & IF_EX.imm;
+                EX_MEM.ALUOutput = ID_EX.A & ID_EX.imm;
                 EX_MEM.write = 1;
                 break;
 
             case 0x0D: 		//ORI
-                EX_MEM.ALUOutput = IF_EX.A | IF_EX.imm;
+                EX_MEM.ALUOutput = ID_EX.A | ID_EX.imm;
                 EX_MEM.write = 1;
                 break;
 
             case 0x0E: 		//XORI
-                EX_MEM.ALUOutput = IF_EX.A ^ IF_EX.imm;
+                EX_MEM.ALUOutput = ID_EX.A ^ ID_EX.imm;
                 EX_MEM.write = 1;
                 break;
 
             case 0x0F: 		//LUI
-                EX_MEM.ALUOutput = IF_EX.imm << 16;
+                EX_MEM.ALUOutput = ID_EX.imm << 16;
                 EX_MEM.write = 1;
                 break;
 
             case 0x20: 		//LB
-                EX_MEM.ALUOutput = IF_EX.A + IF_EX.imm;
-                EX_MEM.LMD = IF_EX.B;
+                EX_MEM.ALUOutput = ID_EX.A + ID_EX.imm;
+                EX_MEM.LMD = ID_EX.B;
                 EX_MEM.write = 1;
                 break;
 
             case 0x21: 		//LH
-                EX_MEM.ALUOutput = IF_EX.A + IF_EX.imm;
-                EX_MEM.LMD = IF_EX.B;
+                EX_MEM.ALUOutput = ID_EX.A + ID_EX.imm;
+                EX_MEM.LMD = ID_EX.B;
                 EX_MEM.write = 1;
                 break;
 
             case 0x23: 		//LW
-                EX_MEM.ALUOutput = IF_EX.A + IF_EX.imm;
+                EX_MEM.ALUOutput = ID_EX.A + ID_EX.imm;
                 EX_MEM.write = 1;
-                EX_MEM.LMD = IF_EX.B;
+                EX_MEM.LMD = ID_EX.B;
                 break;
 
             case 0x28: 		//SB
-                EX_MEM.ALUOutput = IF_EX.A + IF_EX.imm;
-                EX_MEM.LMD = IF_EX.B;
+                EX_MEM.ALUOutput = ID_EX.A + ID_EX.imm;
+                EX_MEM.LMD = ID_EX.B;
                 break;
 
             case 0x29: 		//SH
-                EX_MEM.ALUOutput = IF_EX.A + IF_EX.imm;
-                EX_MEM.LMD = IF_EX.B;
+                EX_MEM.ALUOutput = ID_EX.A + ID_EX.imm;
+                EX_MEM.LMD = ID_EX.B;
                 break;
 
             case 0x2B: 		//SW
-                EX_MEM.ALUOutput = IF_EX.A + IF_EX.imm;
-                EX_MEM.LMD = IF_EX.B;
+                EX_MEM.ALUOutput = ID_EX.A + ID_EX.imm;
+                EX_MEM.LMD = ID_EX.B;
                 break;
 
             default:
@@ -1156,16 +1158,16 @@ void ID()
 
     if (MUX_stall == 0)
     {
-        IF_EX.IR = ID_IF.IR;
+        ID_EX.IR = IF_ID.IR;
     }
     MUX_stall = 0;
 
-    opcode = (IF_EX.IR & 0xFC000000) >> 26;
-    rs = (IF_EX.IR & 0x03E00000) >> 21;
-    rt = (IF_EX.IR & 0x001F0000) >> 16;
-    sa = (IF_EX.IR & 0x000007C0) >> 6;
-    funct = IF_EX.IR & 0x0000003F;
-    immediate = IF_EX.IR & 0x0000FFFF;
+    opcode = (ID_EX.IR & 0xFC000000) >> 26;
+    rs = (ID_EX.IR & 0x03E00000) >> 21;
+    rt = (ID_EX.IR & 0x001F0000) >> 16;
+    sa = (ID_EX.IR & 0x000007C0) >> 6;
+    funct = ID_EX.IR & 0x0000003F;
+    immediate = ID_EX.IR & 0x0000FFFF;
 
     switch((EX_MEM.IR & 0xFC000000) >> 26)
     {
@@ -1310,44 +1312,44 @@ void ID()
         switch(funct)
         {
             case 0x00: 		//SLL
-                IF_EX.A = NEXT_STATE.REGS[rs];
-                IF_EX.B = NEXT_STATE.REGS[sa];
-                IF_EX.imm = 0;
+                ID_EX.A = NEXT_STATE.REGS[rs];
+                ID_EX.B = NEXT_STATE.REGS[sa];
+                ID_EX.imm = 0;
                 break;
 
             case 0x02: 		//SRL
-                IF_EX.A = NEXT_STATE.REGS[rs];
-                IF_EX.B = NEXT_STATE.REGS[sa];
-                IF_EX.imm = 0;
+                ID_EX.A = NEXT_STATE.REGS[rs];
+                ID_EX.B = NEXT_STATE.REGS[sa];
+                ID_EX.imm = 0;
                 break;
 
             case 0x03: 		//SRA
-                IF_EX.A = NEXT_STATE.REGS[rs];
-                IF_EX.B = NEXT_STATE.REGS[sa];
-                IF_EX.imm = 0;
+                ID_EX.A = NEXT_STATE.REGS[rs];
+                ID_EX.B = NEXT_STATE.REGS[sa];
+                ID_EX.imm = 0;
                 break;
 
             default:
-                IF_EX.A = NEXT_STATE.REGS[rs];
-                IF_EX.B = NEXT_STATE.REGS[rt];
-                IF_EX.imm = 0;
+                ID_EX.A = NEXT_STATE.REGS[rs];
+                ID_EX.B = NEXT_STATE.REGS[rt];
+                ID_EX.imm = 0;
                 break;
         }
     }
     else
     {
-        IF_EX.A = NEXT_STATE.REGS[rs];
-        IF_EX.B = NEXT_STATE.REGS[rt];
-        IF_EX.imm = immediate;
+        ID_EX.A = NEXT_STATE.REGS[rs];
+        ID_EX.B = NEXT_STATE.REGS[rt];
+        ID_EX.imm = immediate;
     }
 
-    if((IF_EX.imm & 0x00008000) == 0x00008000)
+    if((ID_EX.imm & 0x00008000) == 0x00008000)
     {
-        IF_EX.imm = IF_EX.imm | 0xFFFF0000;
+        ID_EX.imm = ID_EX.imm | 0xFFFF0000;
     }
     else
     {
-        IF_EX.imm = IF_EX.imm & 0x0000FFFF;
+        ID_EX.imm = ID_EX.imm & 0x0000FFFF;
     }
 
     if(FORWARD_enabledFlag == 1)
@@ -1358,11 +1360,11 @@ void ID()
 
             if((temp2 == 0x20) || (temp2 == 0x21) || (temp2 == 0x23))
             {
-                IF_EX.A = MEM_WB.LMD;
+                ID_EX.A = MEM_WB.LMD;
             }
             else
             {
-                IF_EX.A = MEM_WB.ALUOutput;
+                ID_EX.A = MEM_WB.ALUOutput;
             }
         }
         else if(MUX2_forward == 1)
@@ -1371,21 +1373,21 @@ void ID()
 
             if((temp2 == 0x20) || (temp2 == 0x21) || (temp2 == 0x23))
             {
-                IF_EX.B = MEM_WB.LMD;
+                ID_EX.B = MEM_WB.LMD;
             }
             else
             {
-                IF_EX.B = MEM_WB.ALUOutput;
+                ID_EX.B = MEM_WB.ALUOutput;
             }
         }
 
         if(MUX1_forward == 2)
         {
-            IF_EX.A = EX_MEM.ALUOutput;
+            ID_EX.A = EX_MEM.ALUOutput;
         }
         else if(MUX2_forward == 2)
         {
-            IF_EX.B = EX_MEM.ALUOutput;
+            ID_EX.B = EX_MEM.ALUOutput;
         }
 
         MUX1_forward = 0x00;
@@ -1402,9 +1404,9 @@ void IF()
 
     if(MUX_stall == 0)
     {
-        ID_IF.IR = mem_read_32(CURRENT_STATE.PC);
-        ID_IF.PC = CURRENT_STATE.PC + 4;
-        NEXT_STATE.PC = ID_IF.PC;
+        IF_ID.IR = mem_read_32(CURRENT_STATE.PC);
+        IF_ID.PC = CURRENT_STATE.PC + 4;
+        NEXT_STATE.PC = IF_ID.PC;
     }
     else
     {
@@ -1449,12 +1451,12 @@ void show_pipeline(){
     /*IMPLEMENT THIS*/
 
     printf("\nCurrent PC:   %x\n", CURRENT_STATE.PC);
-    printf("IF/ID.IR      %x\n", ID_IF.IR);
-    printf("IF/ID.PC      %x\n\n", ID_IF.PC);
-    printf("ID/EX.IR      %x\n", IF_EX.IR);
-    printf("ID/EX.A       %x\n", IF_EX.A);
-    printf("ID/EX.B       %x\n", IF_EX.B);
-    printf("ID/EX.imm     %x\n\n", IF_EX.imm);
+    printf("IF/ID.IR      %x\n", IF_ID.IR);
+    printf("IF/ID.PC      %x\n\n", IF_ID.PC);
+    printf("ID/EX.IR      %x\n", ID_EX.IR);
+    printf("ID/EX.A       %x\n", ID_EX.A);
+    printf("ID/EX.B       %x\n", ID_EX.B);
+    printf("ID/EX.imm     %x\n\n", ID_EX.imm);
     printf("EX/MEM.IR     %x\n", EX_MEM.IR);
     printf("EX/MEM.A     %x\n", EX_MEM.A);
     printf("EX/MEM.B     %x\n", EX_MEM.B);

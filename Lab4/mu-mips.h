@@ -3,7 +3,6 @@
 #define FALSE 0
 #define TRUE  1
 
-
 int STALL_MUX = 0;
 int FORWARD_MUX1 = 0;
 int FORWARD_MUX2 = 0;
@@ -30,7 +29,7 @@ int ENABLE_FORWARDING = 0;
 
 typedef struct {
 	uint32_t begin, end;
-	uint8_t *mem;#define ENABLE_FORWARDING 0
+	uint8_t *mem;
 } mem_region_t;
 
 /* memory will be dynamically allocated at initialization */
@@ -62,6 +61,7 @@ typedef struct CPU_Pipeline_Reg_Struct{
 	uint32_t type;
 	uint32_t HI;
 	uint32_t LO;
+        uint32_t write;
 } CPU_Pipeline_Reg;
 
 /***************************************************************/
