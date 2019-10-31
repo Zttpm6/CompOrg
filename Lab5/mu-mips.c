@@ -529,7 +529,24 @@ void load_program() {
 	printf("Program loaded into memory.\n%d words written into memory.\n\n", PROGRAM_SIZE);
 	fclose(fp);
 }
-
+/***************************************************************/
+/* Clear all the pipeline buffer is stall is wrong                                                             */  
+/***************************************************************/
+void Flush_pipeline()
+{
+    IF_ID.IR = 0;
+    IF_ID.A = 0;
+    IF_ID.B = 0;
+    IF_ID.imm = 0;
+    IF_ID.ALUOutput = 0;
+      
+    ID_EX.IR = 0;
+    ID_EX.A = 0;
+    ID_EX.B = 0;
+    ID_EX.imm = 0;
+    ID_EX.ALUOutput = 0;
+        
+}
 /************************************************************/
 /* maintain the pipeline                                                                                           */ 
 /************************************************************/

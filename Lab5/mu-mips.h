@@ -105,5 +105,6 @@ void ID();/*IMPLEMENT THIS*/
 void IF();/*IMPLEMENT THIS*/
 void show_pipeline();/*IMPLEMENT THIS*/
 void initialize();
+void Flush_pipeline();
 void print_program(); /*IMPLEMENT THIS*/
 
