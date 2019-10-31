@@ -3,11 +3,6 @@
 #define FALSE 0
 #define TRUE  1
 
-int STALL_MUX = 0;
-int FORWARD_MUX1 = 0;
-int FORWARD_MUX2 = 0;
-int ENABLE_FORWARDING = 0;
-
 /******************************************************************************/
 /* MIPS memory layout                                                                                                                                      */
 /******************************************************************************/
@@ -58,10 +53,7 @@ typedef struct CPU_Pipeline_Reg_Struct{
 	uint32_t imm;
 	uint32_t ALUOutput;
 	uint32_t LMD;
-	uint32_t type;
-	uint32_t HI;
-	uint32_t LO;
-        uint32_t write;
+	uint32_t RegWrite;
 } CPU_Pipeline_Reg;
 
 /***************************************************************/
@@ -73,6 +65,10 @@ int RUN_FLAG;	/* run flag*/
 uint32_t INSTRUCTION_COUNT;
 uint32_t CYCLE_COUNT;
 uint32_t PROGRAM_SIZE; /*in words*/
+int ENABLE_FORWARDING;
+int STALL_FLAG;
+uint16_t FORWARD_A;
+uint16_t FORWARD_B;
 
 
 /***************************************************************/
