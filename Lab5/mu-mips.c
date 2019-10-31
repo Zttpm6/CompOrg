@@ -978,14 +978,19 @@ void ID()
     if(STALL_FLAG == 0){
         ID_EX.IR = IF_ID.IR;
     }
+    if(BRANCH_FLAG == 1){
+        ID_EX.IR = 0x0;
+    }
+    ID_EX.PC = IF_ID.PC;
     opcode = (ID_EX.IR & 0xFC000000) >> 26;
     backEnd = ID_EX.IR & 0x0000003F;
     rs = (ID_EX.IR & 0x03E00000) >> 21;
     rt = (ID_EX.IR & 0x001F0000) >> 16;
     sa = (ID_EX.IR & 0x000007C0) >> 6;
     immediate = ID_EX.IR & 0x0000FFFF;
+
     STALL_FLAG = 0;
-    
+
     switch((EX_MEM.IR & 0xFC000000) >> 26){
         case 0x08:
         case 0x09:
@@ -998,12 +1003,14 @@ void ID()
         case 0x21:
         case 0x23:
             rdEX = (EX_MEM.IR & 0x001F0000) >> 16;
+            //printf("%x rdEX : %x \n",ID_EX.IR,rdEX);
             break;
         default:
             rdEX = (EX_MEM.IR & 0x0000F800) >> 11;
+            //printf("%x rdEX : %x \n",ID_EX.IR,rdEX);
             break;
     }
-    
+
     switch((MEM_WB.IR & 0xFC000000) >> 26){
         case 0x08:
         case 0x09:
@@ -1016,18 +1023,34 @@ void ID()
         case 0x21:
         case 0x23:
             rdMEM = (MEM_WB.IR & 0x001F0000) >> 16;
+            //printf("%x rdMEM : %x \n",ID_EX.IR,rdMEM);
             break;
         default:
             rdMEM = (MEM_WB.IR & 0x0000F800) >> 11;
+            //printf("%x rdMEM : %x \n",ID_EX.IR,rdMEM);
             break;
     }
-    
+
     if(ENABLE_FORWARDING){
+        if((MEM_WB.RegWrite == 1) && (rdMEM != 0) && ~((EX_MEM.RegWrite) && (rdEX != 0))){
+            //printf("TEST\n");
+            if((rdMEM == rs)){
+                //printf("ForwardAMem\n");
+                FORWARD_A = 0x01;
+            }else if((rdMEM == rt)){
+                //printf("ForwardBMem\n");
+                FORWARD_B = 0x01;
+            }
+        }
+
         if((EX_MEM.RegWrite == 1) && (rdEX != 0x0)){
+            //printf("TEST\n");
             if(rdEX == rs){
                 FORWARD_A = 0x10;
+                //printf("forwardA\n");
             }else if(rdEX == rt){
-                FORWARD_B = 0x10;   
+                FORWARD_B = 0x10;
+                //printf("ForwardB\n");
             }
             switch((EX_MEM.IR & 0xFC000000) >> 26){
                 case 0x20: //LB
@@ -1037,20 +1060,13 @@ void ID()
                     break;
             }
         }
-        
-        if((MEM_WB.RegWrite == 1) && (rdMEM != 0) && ~((EX_MEM.RegWrite) && (rdEX != 0))){
-            if((rdMEM == rs) && (rdEX == 0)){
-                FORWARD_A = 0x01;
-            }else if((rdMEM == rt) && (rdEX == 0)){
-                FORWARD_B = 0x01;
-            }
-        }
+
     }else{
         if((EX_MEM.RegWrite == 1) && (rdEX != 0x0)){
             if(rdEX == rs){
                 STALL_FLAG = 1;
             }else if(rdEX == rt){
-                STALL_FLAG = 1;        
+                STALL_FLAG = 1;
             }
         }
         if((MEM_WB.RegWrite == 1) && (rdMEM != 0)){
@@ -1061,15 +1077,18 @@ void ID()
             }
         }
     }
-    
+    //printf("FA %x FB %x\n",FORWARD_A, FORWARD_B);
+
     if(opcode == 0x00){
         switch(backEnd){
             case 0x00: //SLL
             case 0x02: //SRL
             case 0x03: //SRA
-                ID_EX.A = NEXT_STATE.REGS[rs];
-                ID_EX.B = NEXT_STATE.REGS[sa];
+                ID_EX.B = NEXT_STATE.REGS[rs];
+                ID_EX.A = sa;
                 ID_EX.imm = 0;
+                //printf("SA %x RS %x\n", sa, NEXT_STATE.REGS[rs]);
+                //printf("A %x B %x\n", ID_EX.A, ID_EX.B);
                 break;
             default:
                 ID_EX.A = NEXT_STATE.REGS[rs];
@@ -1077,12 +1096,16 @@ void ID()
                 ID_EX.imm = 0;
                 break;
         }
+    }else if(opcode == 0x01){
+        ID_EX.A = NEXT_STATE.REGS[rs];
+        ID_EX.B = rt;
+        ID_EX.imm = immediate;
     }else{
         ID_EX.A = NEXT_STATE.REGS[rs];
         ID_EX.B = NEXT_STATE.REGS[rt];
         ID_EX.imm = immediate;
     }
-    
+
     if(ENABLE_FORWARDING){
         if(FORWARD_A == 0x10){
             ID_EX.A = EX_MEM.ALUOutput;
@@ -1090,7 +1113,7 @@ void ID()
             ID_EX.B = EX_MEM.ALUOutput;
             //printf("EX_MEM Forward B %x\n", ID_EX.B);
         }
-        if(FORWARD_A == 0x01){ 
+        if(FORWARD_A == 0x01){
             switch((MEM_WB.IR & 0xFC000000) >> 26){
                 case 0x20: //LB
                 case 0x21: //LH
@@ -1113,8 +1136,8 @@ void ID()
                     break;
             }
         }
-      FORWARD_A = 0x00;
-      FORWARD_B = 0x00;
+        FORWARD_A = 0x00;
+        FORWARD_B = 0x00;
     }
 }
 
