@@ -1182,6 +1182,7 @@ void ID()
         ID_EX.A = NEXT_STATE.REGS[rs];
         ID_EX.B = rt;
         ID_EX.imm = immediate;
+        
     }else{
         ID_EX.A = NEXT_STATE.REGS[rs];
         ID_EX.B = NEXT_STATE.REGS[rt];
