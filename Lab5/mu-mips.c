@@ -452,6 +452,7 @@ void reset() {
         IF_ID.imm = 0;
         IF_ID.ALUOutput = 0;
         IF_ID.LMD = 0;
+        
         ID_EX.PC = 0;
         ID_EX.IR = 0;
         ID_EX.A = 0;
@@ -459,6 +460,7 @@ void reset() {
         ID_EX.imm = 0;
         ID_EX.ALUOutput = 0;
         ID_EX.LMD = 0;
+        
         EX_MEM.PC = 0;
         EX_MEM.IR = 0;
         EX_MEM.A = 0;
@@ -467,6 +469,7 @@ void reset() {
         EX_MEM.ALUOutput = 0;
         EX_MEM.LMD = 0;
         EX_MEM.RegWrite = 0;
+        
         MEM_WB.PC = 0;
         MEM_WB.IR = 0;
         MEM_WB.A = 0;
@@ -475,9 +478,9 @@ void reset() {
         MEM_WB.ALUOutput = 0;
         MEM_WB.LMD = 0;
         MEM_WB.RegWrite = 0;
+        
 	STALL_FLAG = 0;
-        
-        
+    
 	/*load program*/
 	load_program();
 	
@@ -532,7 +535,7 @@ void load_program() {
 /***************************************************************/
 /* Clear all the pipeline buffer is stall is wrong                                                             */  
 /***************************************************************/
-void Flush_pipeline()
+/*void Flush_pipeline()
 {
     IF_ID.IR = 0;
     IF_ID.A = 0;
@@ -547,6 +550,8 @@ void Flush_pipeline()
     ID_EX.ALUOutput = 0;
         
 }
+*/
+
 /************************************************************/
 /* maintain the pipeline                                                                                           */ 
 /************************************************************/
@@ -844,6 +849,7 @@ void EX()
                     break;
             }
             break;
+            
         case 0x01:
             if(ID_EX.B == 0){  //BLTZ
                 if((ID_EX.A & 0x80000000) > 0){
@@ -982,6 +988,7 @@ void EX()
 void ID()
 {
     uint32_t opcode, backEnd, rs, rt, sa, immediate, rdEX, rdMEM;
+    //uint32_t MEM_RD;
     if(STALL_FLAG == 0){
         ID_EX.IR = IF_ID.IR;
     }
@@ -998,70 +1005,98 @@ void ID()
 
     STALL_FLAG = 0;
 
-    switch((EX_MEM.IR & 0xFC000000) >> 26){
+    switch((EX_MEM.IR & 0xFC000000) >> 26)
+    {
         case 0x08:
-            EX_RD = (EX_MEM.IR & 0x001F0000) >> 16;
+            rdEX = (EX_MEM.IR & 0x001F0000) >> 16;
             break;
             
         case 0x09:
-            EX_RD = (EX_MEM.IR & 0x001F0000) >> 16;
+            rdEX = (EX_MEM.IR & 0x001F0000) >> 16;
             break;
             
         case 0x0A:
-            EX_RD = (EX_MEM.IR & 0x001F0000) >> 16;
+            rdEX = (EX_MEM.IR & 0x001F0000) >> 16;
             break;	
             
         case 0x0C:
-            EX_RD = (EX_MEM.IR & 0x001F0000) >> 16;
+            rdEX = (EX_MEM.IR & 0x001F0000) >> 16;
             break;	
             
         case 0x0D:
-            EX_RD = (EX_MEM.IR & 0x001F0000) >> 16;
+            rdEX = (EX_MEM.IR & 0x001F0000) >> 16;
             break;
             
         case 0x0E:
-            EX_RD = (EX_MEM.IR & 0x001F0000) >> 16;
+            rdEX = (EX_MEM.IR & 0x001F0000) >> 16;
             break;
             
         case 0x0F:
-            EX_RD = (EX_MEM.IR & 0x001F0000) >> 16;
+            rdEX = (EX_MEM.IR & 0x001F0000) >> 16;
             break;
             
         case 0x20:
-            EX_RD = (EX_MEM.IR & 0x001F0000) >> 16;
+            rdEX = (EX_MEM.IR & 0x001F0000) >> 16;
             break;
             
         case 0x21:
-            EX_RD = (EX_MEM.IR & 0x001F0000) >> 16;
+            rdEX = (EX_MEM.IR & 0x001F0000) >> 16;
             break;
             
         case 0x23:
    
-
             rdEX = (EX_MEM.IR & 0x001F0000) >> 16;
             break;
             
         default:
 
-            EX_RD = (EX_MEM.IR & 0x0000F800) >> 11;
+            rdEX = (EX_MEM.IR & 0x0000F800) >> 11;
 
             rdEX = (EX_MEM.IR & 0x0000F800) >> 11;
             //printf("%x rdEX : %x \n",ID_EX.IR,rdEX);
             break;
     }
 
-    switch((MEM_WB.IR & 0xFC000000) >> 26){
+    switch((MEM_WB.IR & 0xFC000000) >> 26)
+    {
         case 0x08:
-        case 0x09:
-        case 0x0A:
-        case 0x0C:
-        case 0x0D:
-        case 0x0E:
-        case 0x0F:
-        case 0x20:
-        case 0x21:
-        case 0x23:
             rdMEM = (MEM_WB.IR & 0x001F0000) >> 16;
+            break;
+            
+        case 0x09:
+             rdMEM = (MEM_WB.IR & 0x001F0000) >> 16;
+             break;
+             
+        case 0x0A:
+             rdMEM = (MEM_WB.IR & 0x001F0000) >> 16;
+             break;
+             
+        case 0x0C:
+             rdMEM = (MEM_WB.IR & 0x001F0000) >> 16;
+             break;
+             
+        case 0x0D:
+             rdMEM = (MEM_WB.IR & 0x001F0000) >> 16;
+             break;
+             
+        case 0x0E:
+             rdMEM = (MEM_WB.IR & 0x001F0000) >> 16;
+             break;
+             
+        case 0x0F:
+             rdMEM = (MEM_WB.IR & 0x001F0000) >> 16;
+             break;
+             
+        case 0x20:
+             rdMEM = (MEM_WB.IR & 0x001F0000) >> 16;
+             break;
+             
+        case 0x21:
+             rdMEM = (MEM_WB.IR & 0x001F0000) >> 16;
+             break;
+             
+        case 0x23:
+            rdMEM = (MEM_WB.IR & 0x001F0000) >> 16;   // What does rdMEM stand for?
             //printf("%x rdMEM : %x \n",ID_EX.IR,rdMEM);
             break;
         default:
@@ -1070,9 +1105,9 @@ void ID()
             break;
     }
 
-    if(ENABLE_FORWARDING){
+    if(ENABLE_FORWARDING)
+    {
         if((MEM_WB.RegWrite == 1) && (rdMEM != 0) && ~((EX_MEM.RegWrite) && (rdEX != 0))){
-            //printf("TEST\n");
             if((rdMEM == rs)){
                 //printf("ForwardAMem\n");
                 FORWARD_A = 0x01;
@@ -1083,7 +1118,6 @@ void ID()
         }
 
         if((EX_MEM.RegWrite == 1) && (rdEX != 0x0)){
-            //printf("TEST\n");
             if(rdEX == rs){
                 FORWARD_A = 0x10;
                 //printf("forwardA\n");
@@ -1121,14 +1155,23 @@ void ID()
     if(opcode == 0x00){
         switch(backEnd){
             case 0x00: //SLL
+                ID_EX.B = NEXT_STATE.REGS[rs];
+                ID_EX.A = sa;
+                ID_EX.imm = 0;
+                break;
+                
             case 0x02: //SRL
+                ID_EX.B = NEXT_STATE.REGS[rs];
+                ID_EX.A = sa;
+                ID_EX.imm = 0;
+                break;
+                
             case 0x03: //SRA
                 ID_EX.B = NEXT_STATE.REGS[rs];
                 ID_EX.A = sa;
                 ID_EX.imm = 0;
-                //printf("SA %x RS %x\n", sa, NEXT_STATE.REGS[rs]);
-                //printf("A %x B %x\n", ID_EX.A, ID_EX.B);
                 break;
+                
             default:
                 ID_EX.A = NEXT_STATE.REGS[rs];
                 ID_EX.B = NEXT_STATE.REGS[rt];

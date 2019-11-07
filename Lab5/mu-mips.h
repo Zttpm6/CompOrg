@@ -67,6 +67,7 @@ uint32_t CYCLE_COUNT;
 uint32_t PROGRAM_SIZE; /*in words*/
 int ENABLE_FORWARDING;
 int STALL_FLAG;
+int BRANCH_FLAG;
 uint16_t FORWARD_A;
 uint16_t FORWARD_B;
 
