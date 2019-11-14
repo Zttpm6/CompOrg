@@ -5,6 +5,7 @@
 #include <assert.h>
 
 #include "mu-mips.h"
+#include "mu-cache.h"
 
 /***************************************************************/
 /* Print out a list of commands available                                                                  */
