@@ -7,6 +7,8 @@
 #include "mu-mips.h"
 #include "mu-cache.h"
 
+int miss_cache = 0;  //flag added for cache  
+
 /***************************************************************/
 /* Print out a list of commands available                                                                  */
 /***************************************************************/
@@ -45,7 +47,7 @@ void print_instruction(uint32_t addr, int type){
 	sa = (instruction & 0x000007C0) >> 6;
 	immediate = instruction & 0x0000FFFF;
 	target = instruction & 0x03FFFFFF;
-	
+        
 	if(opcode == 0x00){
 		/*R format instructions here*/
 		
@@ -137,7 +139,7 @@ void print_instruction(uint32_t addr, int type){
 	else{
 		switch(opcode){
 			case 0x01:
-				if(rt == 0){
+				if(rt == 0){sert.h>
 					printf("BLTZ $r%u, 0x%x\n", rs, immediate<<2);
 				}
 				else if(rt == 1){
@@ -243,6 +245,80 @@ void mem_write_32(uint32_t address, uint32_t value)
 			MEM_REGIONS[i].mem[offset+0] = (value >>  0) & 0xFF;
 		}
 	}
+}
+
+/***************************************************************/
+/* Read Cache                                                                       */
+/***************************************************************/
+uint32_t ReadCache(uint32_t address)
+{
+        CacheBlock.tag = (address & 0xFFFFFF00) >> 8, index = (address & 0x000000F0) >> 4, offset = (address & 0x0000000C) >> 2;
+        
+        if(L1Cache.blocks[index].tag != tag || L1Cache.blocks[index].valid != 1)
+        {
+            L1Cache.blocks[index].tag = tag;
+            L1Cache.blocks[index].words[0] = mem_read_32((address & 0xFFFFFFF0));
+            L1Cache.blocks[index].words[1] = mem_read_32((address & 0xFFFFFFF0) + 0x04);
+            L1Cache.blocks[index].words[2] = mem_read_32((address & 0xFFFFFFF0) + 0x08);
+            L1Cache.blocks[index].words[3] = mem_read_32((address & 0xFFFFFFF0) + 0x0C);
+            
+            miss_cache = 1;
+            L1Cache.blocks[index].valid = 1;
+            cache_misses++;
+        }
+        else
+        {
+            cache_hits++;
+        }
+        return L1Cache.blocks[index].words[offset];
+}
+
+/***************************************************************/
+/* Write Cache                                                                  */
+/***************************************************************/
+uint32_t WriteCache(uint32_t address, uint32_t newData )
+{
+      CacheBlock.offset = (address & 0x0000000C) >> 2;
+      CacheBlock.index = (address & 0x000000F0) >> 4;
+      CacheBlock.tag = (address & 0xFFFFFF00) >> 8;
+      uint32_t data;
+      
+      if(L1Cache.blocks[index].tag != tag || L1Cache.blocks[index].valid != 1)
+      {
+        L1Cache.blocks[index].tag = tag;
+        L1Cache.blocks[index].words[0] = mem_read_32((address & 0xFFFFFFF0));
+        L1Cache.blocks[index].words[1] = mem_read_32((address & 0xFFFFFFF0) + 0x04);
+        L1Cache.blocks[index].words[2] = mem_read_32((address & 0xFFFFFFF0) + 0x08);
+        L1Cache.blocks[index].words[3] = mem_read_32((address & 0xFFFFFFF0) + 0x0C);
+        
+        miss_cache = 1;
+        L1Cache.blocks[index].valid = 1;
+        cache_misses++;
+        //printf("[%d]\t%x\t0x%08x\t0x%08x\t0x%08x\t0x%08x\n", tag, L1Cache.blocks[index].tag, L1Cache.blocks[index].words[0], L1Cache.blocks[index].words[1],   L1Cache.blocks[index].words[2], L1Cache.blocks[index].words[3]);
+     }
+     else
+     {
+        cache_hits++;
+     }
+     switch((MEM_WB.IR & 0xFC000000) >> 26)
+     {
+        case 0x28: //SB
+            data = L1Cache.blocks[index].words[offsetWord];
+            data = (data & 0xFFFFFF00) | (dataNew & 0x000000FF);
+            break;
+        case 0x29: //SH
+            data = L1Cache.blocks[index].words[offsetWord];
+            data = (data & 0xFFFF0000) | (dataNew & 0x0000FFFF);
+            break;
+        case 0x2B: //SW
+            data = dataNew;
+            break;
+        default:
+            data = 0x00;
+            break;
+        
+    }
+      
 }
 
 /***************************************************************/
@@ -1142,7 +1218,6 @@ void IF()
     }
     
 }
-
 
 /************************************************************/
 /* Initialize Memory                                                                                                    */ 
