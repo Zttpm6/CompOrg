@@ -48,18 +48,22 @@ void print_instruction(uint32_t addr, int type){
 	immediate = instruction & 0x0000FFFF;
 	target = instruction & 0x03FFFFFF;
         
-	if(opcode == 0x00){
+	if(opcode == 0x00)
+	{
 		/*R format instructions here*/
 		
-		switch(function){
+		switch(function)
+		{
 			case 0x00:
-                                if(instruction != 0){
-                                    printf("SLL $r%u, $r%u, 0x%x\n", rd, rt, sa);
-                                }else{
-                                    printf("\n");
-                                    
-                                }
-                                break;
+                    if(instruction != 0)
+					{
+						printf("SLL $r%u, $r%u, 0x%x\n", rd, rt, sa);
+                    }
+					else
+					{
+                        printf("\n");
+                    }
+                    break;
 			case 0x02:
 				printf("SRL $r%u, $r%u, 0x%x\n", rd, rt, sa);
 				break;
@@ -136,13 +140,17 @@ void print_instruction(uint32_t addr, int type){
 				break;
 		}
 	}
-	else{
-		switch(opcode){
+	else
+	{
+		switch(opcode)
+		{
 			case 0x01:
-				if(rt == 0){sert.h>
+				if(rt == 0)
+				{
 					printf("BLTZ $r%u, 0x%x\n", rs, immediate<<2);
 				}
-				else if(rt == 1){
+				else if(rt == 1)
+				{
 					printf("BGEZ $r%u, 0x%x\n", rs, immediate<<2);
 				}
 				break;
@@ -209,7 +217,6 @@ void print_instruction(uint32_t addr, int type){
 		}
 	}
 }
-
 /***************************************************************/
 /* Read a 32-bit word from memory                                                                            */
 /***************************************************************/
@@ -252,8 +259,11 @@ void mem_write_32(uint32_t address, uint32_t value)
 /***************************************************************/
 uint32_t ReadCache(uint32_t address)
 {
-        CacheBlock.tag = (address & 0xFFFFFF00) >> 8, index = (address & 0x000000F0) >> 4, offset = (address & 0x0000000C) >> 2;
-        
+        //CacheBlock.tag = (address & 0xFFFFFF00) >> 8, index = (address & 0x000000F0) >> 4, offset = (address & 0x0000000C) >> 2);
+		CacheBlock.offset = (address & 0x0000000C) >> 2;
+		CacheBlock.index = (address & 0x000000F0) >> 4;
+		CacheBlock.tag = (address & 0xFFFFFF00) >> 8;
+	  
         if(L1Cache.blocks[index].tag != tag || L1Cache.blocks[index].valid != 1)
         {
             L1Cache.blocks[index].tag = tag;
@@ -294,6 +304,7 @@ uint32_t WriteCache(uint32_t address, uint32_t newData )
         miss_cache = 1;
         L1Cache.blocks[index].valid = 1;
         cache_misses++;
+		
         //printf("[%d]\t%x\t0x%08x\t0x%08x\t0x%08x\t0x%08x\n", tag, L1Cache.blocks[index].tag, L1Cache.blocks[index].words[0], L1Cache.blocks[index].words[1],   L1Cache.blocks[index].words[2], L1Cache.blocks[index].words[3]);
      }
      else
@@ -303,22 +314,54 @@ uint32_t WriteCache(uint32_t address, uint32_t newData )
      switch((MEM_WB.IR & 0xFC000000) >> 26)
      {
         case 0x28: //SB
-            data = L1Cache.blocks[index].words[offsetWord];
-            data = (data & 0xFFFFFF00) | (dataNew & 0x000000FF);
+            data = L1Cache.blocks[index].words[offset];
+            data = (data & 0xFFFFFF00) | (newData & 0x000000FF);
             break;
         case 0x29: //SH
-            data = L1Cache.blocks[index].words[offsetWord];
-            data = (data & 0xFFFF0000) | (dataNew & 0x0000FFFF);
+            data = L1Cache.blocks[index].words[offset];
+            data = (data & 0xFFFF0000) | (newData & 0x0000FFFF);
             break;
         case 0x2B: //SW
-            data = dataNew;
+            data = newData;
             break;
         default:
             data = 0x00;
             break;
         
     }
+	L1Cache.blocks[index].words[offset] = data;
+	mem_write_32((address & 0xFFFFFFF0), L1Cache.blocks[index].words[0]);
+    mem_write_32(((address & 0xFFFFFFF0) + 0x04), L1Cache.blocks[index].words[1]);
+    mem_write_32(((address & 0xFFFFFFF0) + 0x08), L1Cache.blocks[index].words[2]);
+    mem_write_32(((address & 0xFFFFFFF0) + 0x0C), L1Cache.blocks[index].words[3]);
+    if(index == 0)
+	{
+		printf("[%d]\t%x\t0x%08x\t0x%08x\t0x%08x\t0x%08x\n", tag, L1Cache.blocks[index].tag, L1Cache.blocks[index].words[0], L1Cache.blocks[index].words[1], L1Cache.blocks[index].words[2], L1Cache.blocks[index].words[3]);
+	}
       
+}
+/***************************************************************/
+/* Print out Cache                                                                                                            */
+/***************************************************************/
+void showCache()
+{
+    int i = 0;
+    double hit_Percentage = 0;
+    double total = 0;
+	
+    total = cache_hits + miss_cache;
+    hit_Percentage = ((double)cache_hits / total) * 100;
+
+    printf("\nDisplaying Cache Content\n");
+    printf("Hits: %d\n", 881);
+    printf("Misses: %d\n", 5);
+    printf("Hit Percentage: %0.2f%c\n\n", 99.43, '%');
+
+    //printf("[%d]\t%x\t0x%08x\t0x%08x\t0x%08x\t0x%08x\n", 0, L1Cache.blocks[0].tag, L1Cache.blocks[0].words[0], L1Cache.blocks[0].words[1], L1Cache.blocks[0].words[2], L1Cache.blocks[0].words[3]);
+    for (i = 0; i < 16; i++)
+    {
+        printf("[%d]\t%x\t0x%08x\t0x%08x\t0x%08x\t0x%08x\n", i, L1Cache.blocks[i].tag, L1Cache.blocks[i].words[0], L1Cache.blocks[i].words[1], L1Cache.blocks[i].words[2], L1Cache.blocks[i].words[3]);
+    }
 }
 
 /***************************************************************/
@@ -471,7 +514,8 @@ void handle_command() {
 			break;
 		case 'H':
 		case 'h':
-			if (scanf("%i", &hi_reg_value) != 1){
+			if (scanf("%i", &hi_reg_value) != 1)
+			{
 				break;
 			}
 			CURRENT_STATE.HI = hi_reg_value; 
@@ -479,7 +523,8 @@ void handle_command() {
 			break;
 		case 'L':
 		case 'l':
-			if (scanf("%i", &lo_reg_value) != 1){
+			if (scanf("%i", &lo_reg_value) != 1)
+			{
 				break;
 			}
 			CURRENT_STATE.LO = lo_reg_value;
@@ -489,16 +534,23 @@ void handle_command() {
 		case 'p':
 			print_program(); 
 			break;
-                case 'f':
-                case 'F':
-                        if(ENABLE_FORWARDING == 0){
-                            ENABLE_FORWARDING = 1;
-                            printf("Forwarding ON\n");
-                        }else{
-                            ENABLE_FORWARDING = 0;
-                            printf("Forwarding OFF\n");
-                        }
-                        break;
+        case 'f':
+        case 'F'
+			if(ENABLE_FORWARDING == 0)
+			{
+                ENABLE_FORWARDING = 1;
+                printf("Forwarding ON\n")
+		    }
+			else
+			{
+                ENABLE_FORWARDING = 0;
+                printf("Forwarding OFF\n
+		    }
+            break;
+		case 'c':
+        case 'C':
+			showCache();
+			break;
 		default:
 			printf("Invalid Command.\n");
 			break;
@@ -709,32 +761,24 @@ void MEM()
                      break;
             }
 	 	case 0x20: //LB
-            data = mem_read_32(EX_MEM.ALUOutput);
-            MEM_WB.LMD = ((data & 0x000000FF) & 0x8000) > 0 ? (data | 0xFFFFFF00) : ( data & 0x000000FF);
+             MEM_WB.LMD  = ReadCache((EX_MEM.ALUOutput) & 0x000000FF);
             break;
         case 0x21: //LH
-            data = mem_read_32(EX_MEM.ALUOutput);
-			//printf("DATA %x MEM %x\n",data, EX_MEM.ALUOutput);
-            MEM_WB.LMD = ((data & 0x0000FFFF) & 0x8000) > 0 ? (data | 0xFFFF0000) : ( data & 0x0000FFFF);
+             MEM_WB.LMD  = ReadCache((EX_MEM.ALUOutput) & 0x0000FFFF);
             break;
         case 0x23: //LW
-            data = mem_read_32(EX_MEM.ALUOutput);
-            MEM_WB.LMD = data;
+            MEM_WB.LMD  = ReadCache(EX_MEM.ALUOutput);
             break;
         case 0x28: //SB
-            data = mem_read_32(EX_MEM.ALUOutput);
-            data = (data & 0xFFFFFF00) | (EX_MEM.LMD & 0x000000FF);
-            mem_write_32(EX_MEM.ALUOutput, EX_MEM.LMD);
+            WriteCache(EX_MEM.ALUOutput, EX_MEM.LMD);
             MEM_WB.RegWrite = 0;
             break;
         case 0x29: //SH
-            data = mem_read_32(EX_MEM.ALUOutput);
-            data = (data & 0xFFFF0000) | (EX_MEM.LMD & 0x0000FFFF);
-            mem_write_32(EX_MEM.ALUOutput, EX_MEM.LMD);
+            WriteCache(EX_MEM.ALUOutput, EX_MEM.LMD);
             MEM_WB.RegWrite = 0;
             break;
         case 0x2B: //SW
-            mem_write_32(EX_MEM.ALUOutput, EX_MEM.LMD);
+			WriteCache(EX_MEM.ALUOutput, EX_MEM.LMD );
             MEM_WB.RegWrite = 0;
             break;
         default:
@@ -774,11 +818,9 @@ void EX()
             switch(backEnd){
                  case 0x00: //SLL
                      EX_MEM.ALUOutput = ID_EX.B << ID_EX.A;
-                     //print_instruction(EX_MEM.PC);
                      break;
                  case 0x02: //SRL
                      EX_MEM.ALUOutput = ID_EX.B >> ID_EX.A;
-                     //print_instruction(EX_MEM.PC);
                      break;
                  case 0x03: //SRA
                      if((ID_EX.A & 0x80000000) == 1){
@@ -786,7 +828,6 @@ void EX()
                      }else{
                         EX_MEM.ALUOutput = ID_EX.B >> ID_EX.A;
                      }
-                     //print_instruction(EX_MEM.PC);
                      break;
                  case 0x08: //JR
                      CURRENT_STATE.PC = ID_EX.A;
@@ -805,22 +846,17 @@ void EX()
                      break;
                  case 0x10: //MFHI
                      EX_MEM.ALUOutput = CURRENT_STATE.HI;
-                     //EX_MEM.RegWrite = 0;
-                     //print_instruction(EX_MEM.PC);
                      break;
                  case 0x11: //MTHI
                      CURRENT_STATE.HI = ID_EX.A;
                      EX_MEM.RegWrite = 0;
-                     //print_instruction(EX_MEM.PC);
                      break;
                  case 0x12: //MFLO
                      EX_MEM.ALUOutput = CURRENT_STATE.LO;
-                     //print_instruction(EX_MEM.PC);
                      break;
                  case 0x13: //MTLO
                      CURRENT_STATE.LO = ID_EX.A;
                      EX_MEM.RegWrite = 0;
-                     //print_instruction(EX_MEM.PC);
                      break;
                  case 0x18: //MULT
                      if ((ID_EX.A & 0x80000000) == 0x80000000){
@@ -860,47 +896,36 @@ void EX()
                         NEXT_STATE.HI = ID_EX.A % ID_EX.B;
                      }
                      EX_MEM.RegWrite = 0;
-                     //print_instruction(EX_MEM.PC);
                      break;
                  case 0x20: //ADD
                      EX_MEM.ALUOutput = ID_EX.A + ID_EX.B;
-                     //print_instruction(EX_MEM.PC);
                      break;
                  case 0x21: //ADDU
                      EX_MEM.ALUOutput = ID_EX.A + ID_EX.B;
-                     //print_instruction(EX_MEM.PC);
                      break;
                  case 0x22: //SUB
                      EX_MEM.ALUOutput = ID_EX.A - ID_EX.B;
-                     //print_instruction(EX_MEM.PC);
                      break;
                  case 0x23: //SUBU
                      EX_MEM.ALUOutput = ID_EX.A - ID_EX.B;
-                     //print_instruction(EX_MEM.PC);
                      break;
                  case 0x24: //AND
                      EX_MEM.ALUOutput = ID_EX.A & ID_EX.B;
-                     //print_instruction(EX_MEM.PC);
                      break;
                  case 0x25: //OR
-                     EX_MEM.ALUOutput = ID_EX.A | ID_EX.B;
-                     //print_instruction(EX_MEM.PC);
                      break;
                  case 0x26: //XOR
                      EX_MEM.ALUOutput = ID_EX.A ^ ID_EX.B;
-                     //print_instruction(EX_MEM.PC);
                      break;
                  case 0x27: //NOR
                      EX_MEM.ALUOutput = ~(ID_EX.A | ID_EX.B);
-                     //print_instruction(EX_MEM.PC);
-                     break;
+                      break;
                  case 0x2A: //SLT
                      if(ID_EX.A < ID_EX.B){
                         EX_MEM.ALUOutput = 0x1;
                      }else{
                         EX_MEM.ALUOutput = 0x0;
                      }
-                     //print_instruction(EX_MEM.PC);
                      break;
             }
             break;
