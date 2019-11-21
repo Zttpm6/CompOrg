@@ -11,8 +11,6 @@ typedef struct CacheBlock_Struct {
   uint32_t tag, index, offset; //this field should contain the tag, i.e. the high-order 32 - (2+2+4)  = 24 bits
   uint32_t words[WORD_PER_BLOCK]; //this is where actual data is stored. Each word is 4-byte long, and each cache block contains 4 blocks.
   
-  
-  
 } CacheBlock;
 
 typedef struct Cache_Struct {
@@ -28,7 +26,7 @@ typedef struct Cache_Struct {
 /***************************************************************/
 uint32_t cache_misses; //need to initialize to 0 at the beginning of simulation start
 uint32_t cache_hits;   //need to initialize to 0 at the beginning of simulation start
-uint32_t CACHE_MISS_FLAG
+uint32_t CACHE_MISS_FLAG;
 
 /***************************************************************/
 /* CACHE OBJECT                                                */
